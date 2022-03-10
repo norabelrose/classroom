@@ -1,2 +1,2 @@
 # whisper
-Framework-agnostic library for preference-based reinforcement learning with a browser-based GUI for eliciting human feedback. Become an AI whisperer today.
+Preference-based reinforcement learning in PyTorch and JAX with a browser-based GUI. Become an AI whisperer today.
