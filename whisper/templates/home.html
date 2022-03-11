@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>{{ title }}</title>
+  <link rel="stylesheet" type="text/css" href="/static/main.css" />
+</head>
+<body>
+  <header class="nav">
+    <span class="nav-item">Whisper</span>
+  </header>
+  <div id="container">
+    <nav class="nav sidebar">
+      <h3>Experiments</h3>
+      <ul>
+        {% for experiment in experiments %}
+        <li> {{ experiment }} </li>
+        {% endfor %}
+      </ul>
+    </nav>
+    <div class="content">
+      <h3>How this works</h3>
+      <ul>
+        {% for instruction in instructions %}
+        <li> {{ instruction }} </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</body>
+</html>

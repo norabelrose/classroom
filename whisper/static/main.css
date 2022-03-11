@@ -1,0 +1,59 @@
+/* Determine dark/light mode based on user's system preferences */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --font-color: rgb(201, 209, 217);
+        --bg-color: rgb(13, 17, 23);
+    }
+}
+@media (prefers-color-scheme: light) {
+    :root {
+        --font-color: #424242;
+        --bg-color: #fff;
+    }
+}
+
+body {
+    background-color: var(--bg-color);
+    height: 100vh;
+
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;  /* Allow nav bar to reach to the edges */
+}
+
+header {
+    display: flex;
+    filter: drop-shadow(0px 5px 5px black);
+    height: 45px;
+    justify-content: space-between;
+}
+
+/* Contains the sidebar and the content div */
+#container {
+    display: flex;
+    padding: 0;
+}
+
+.content {
+    color: var(--font-color);
+    margin: 2rem;
+}
+
+/* Top bar and sidebar colors, copied from GitHub */
+.nav {
+    background-color: rgb(23, 27, 33);
+    color: rgb(240, 246, 252);
+    padding: 16px 32px;
+}
+
+.nav-item {
+    font-size: 2rem;
+    font-weight: bold;
+}
+
+.sidebar {
+    border: rgb(55, 59, 65) solid 1px;
+    float: left;
+    height: 100%;
+    position: sticky;
+    width: 20rem;
+}
