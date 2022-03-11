@@ -11,15 +11,15 @@ class Clip:
     should be sufficient to reconstruct the trajectory segment. In other cases, it may
     be desirable or necessary to store environment states or observations as well.
     """
-    seed: np.uint64
-    timestamp: np.float64
+    seed: int
+    timestamp: float
     actions: np.ndarray
 
     @classmethod
     def from_numpy(cls, array: np.ndarray) -> 'Clip':
         """Create a `Clip` from a structured NumPy array."""
         return cls(
-            seed=array['seed'],
-            timestamp=array['timestamp'],
+            seed=int(array['seed']),
+            timestamp=float(array['timestamp']),
             actions=array['actions'],
         )

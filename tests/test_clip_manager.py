@@ -2,8 +2,13 @@ from pathlib import Path
 from whisper import Clip, ClipManager
 import gym
 import numpy as np
+import pytest
 import tempfile
 import time
+
+
+# Arbitrary testing parameters
+CLIP_LENGTH = 25
 
 
 def test_database_creation():
@@ -12,26 +17,39 @@ def test_database_creation():
     # Create a new database and write some clips to it
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = Path(tmpdir)
-        clip_length = 25
-        capacity = 10
 
-        clip_manager = ClipManager(db_path, env, clip_length, capacity)
-        assert clip_manager.db_path == db_path
-        assert clip_manager.clip_length == clip_length
-        assert clip_manager.capacity == capacity
-
-        # Add a clip
-        clip_manager.add_clip(
-            Clip(42, time.time(), [env.action_space.sample()] * clip_length)
+        manager = ClipManager(db_path, env, CLIP_LENGTH)
+        manager.add_clip(
+            Clip(42, time.time(), np.array([env.action_space.sample()] * CLIP_LENGTH))
         )
-        assert len(clip_manager) == 1
-        assert clip_manager[0].seed == 42
+        assert len(manager) == 1
+        assert manager[0].seed == 42
 
         # Now add 10 more clips, and check to see if the database has been extended
-        for i in range(10):
-            clip_manager.add_clip(
-                Clip(i, time.time(), [env.action_space.sample()] * clip_length)
+        for i in range(manager.capacity):
+            manager.add_clip(
+                Clip(i, time.time(), np.array([env.action_space.sample()] * CLIP_LENGTH))
             )
         
-        assert len(clip_manager) == 11
-        assert clip_manager.capacity > 10
+        assert len(manager) == 11
+        assert manager.capacity > 10
+
+
+def test_concurrent_managers():
+    env = gym.make('CartPole-v1')
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = Path(tmpdir)
+
+        producer = ClipManager(db_path, env, CLIP_LENGTH)
+        consumer = ClipManager(db_path, read_only=True)
+
+        # Add a clip
+        producer.add_clip(
+            Clip(42, time.time(), np.array([env.action_space.sample()] * CLIP_LENGTH))
+        )
+        assert len(consumer) == len(producer) == 1
+
+        with pytest.raises(ValueError):
+            # Attempt to add a clip to the read-only database
+            consumer.add_clip(producer[0])

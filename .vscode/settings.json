@@ -1,4 +1,7 @@
+// We intentionally include this file in the repo to make it easier
+// for contributors who use VSCode to follow type checking conventions
 {
+    "python.analysis.typeCheckingMode": "basic",
     "python.testing.pytestArgs": [
         "tests"
     ],
