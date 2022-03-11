@@ -48,13 +48,13 @@ class ClipManager:
                 self.info = json.load(f)
                 clip_length = self.info['clip_length']
             
-            self.mode = 'r' if read_only else 'r+'
+            mode = 'r' if read_only else 'r+'
 
         # Create a new database directory
         else:
             assert env is not None, "Must provide a Gym environment to create a new database"
             assert not read_only, "Cannot create a new database in read-only mode"
-            self.mode = 'w+'
+            mode = 'w+'
 
             # Create the database directory
             db_path.mkdir(parents=True, exist_ok=True)
@@ -78,21 +78,21 @@ class ClipManager:
             ('timestamp', np.float64),
             ('actions', env.action_space.dtype, (clip_length, *env.action_space.shape)),
         ])
-        self._map_to_capacity(capacity)
+        self._map_to_capacity(capacity, mode)
         self.clip_length = clip_length
     
-    def _map_to_capacity(self, capacity: int):
+    def _map_to_capacity(self, capacity: int, mode: str):
         """Private method for (re-)mapping the buffer to a (new) capacity."""
         # Memory map the clip buffer. Note that the first 16 bytes of the buffer are reserved for
         # two 64-bit unsigned integers: the buffer capacity, and the write cursor.
         self._buffer = np.memmap(
-            self.clip_file, dtype=self.clip_dtype, mode=self.mode, offset=16, shape=(capacity,)
+            self.clip_file, dtype=self.clip_dtype, mode=mode, offset=16, shape=(capacity,)
         )
         self._capacity = np.memmap(
-            self.clip_file, dtype=np.uint64, mode=self.mode, offset=0, shape=()
+            self.clip_file, dtype=np.uint64, mode=mode, offset=0, shape=()
         )
         self._write_cursor = np.memmap(
-            self.clip_file, dtype=np.uint64, mode=self.mode, offset=8, shape=()
+            self.clip_file, dtype=np.uint64, mode=mode, offset=8, shape=()
         )
         # Let read-only clients know that the buffer has been extended
         if not self.read_only:
@@ -112,7 +112,7 @@ class ClipManager:
         # Check if we need to re-map the buffer to a new size
         if cursor > len(self._buffer):
             assert self.capacity > cursor, "Internal error: write cursor is beyond capacity"
-            self._map_to_capacity(self.capacity)
+            self._map_to_capacity(self.capacity, 'r' if self.read_only else 'r+')
         
         return cursor
     
@@ -125,18 +125,25 @@ class ClipManager:
         """
         # Check if we need to re-map the buffer to a new size
         if len(self) == self.capacity:
-            self._map_to_capacity(self.capacity * 2)
+            self._map_to_capacity(self.capacity * 2, 'r' if self.read_only else 'r+')
         
         clip = np.array(
             (seed, timestamp, actions),
             dtype=self.clip_dtype, order='C'
         )
         self._buffer[self._write_cursor] = clip
-        self._write_cursor = self._write_cursor + 1
+
+        # Hackish way to increment the write cursor- the "normal" way doesn't work for np.memmap
+        self._write_cursor.fill(int(self._write_cursor) + 1)
     
     @property
     def capacity(self) -> int:
         return int(self._capacity)
+    
+    def flush(self):
+        self._buffer.flush()
+        self._capacity.flush()
+        self._write_cursor.flush()
 
     @property
     def read_only(self) -> bool:
