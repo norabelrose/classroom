@@ -1,3 +1,5 @@
+from .clip import Clip
+from dataclasses import astuple
 from datetime import date
 from pathlib import Path
 from typing import Optional
@@ -98,12 +100,12 @@ class ClipManager:
         if not self.read_only:
             self._capacity.fill(capacity)
     
-    def __getitem__(self, index: int) -> np.ndarray:
+    def __getitem__(self, index: int) -> Clip:
         """Retrieve a clip from the database."""
         if index >= len(self):
             raise IndexError(f"Index {index} out of bounds")
         
-        return self._buffer[index]
+        return Clip.from_numpy(self._buffer[index])
     
     def __len__(self) -> int:
         """Number of clips available to be read in the database."""
@@ -119,7 +121,7 @@ class ClipManager:
     def __repr__(self) -> str:
         return f"ClipServer(db_path={str(self.db_path)}, read_only={self.read_only})"
     
-    def add_clip(self, seed: int, timestamp: float, actions: np.ndarray):
+    def add_clip(self, clip: Clip):
         """
         Append a clip to the end of the buffer. This will fail if the database object is read-only.
         """
@@ -127,10 +129,7 @@ class ClipManager:
         if len(self) == self.capacity:
             self._map_to_capacity(self.capacity * 2, 'r' if self.read_only else 'r+')
         
-        clip = np.array(
-            (seed, timestamp, actions),
-            dtype=self.clip_dtype, order='C'
-        )
+        clip = np.array(astuple(clip), dtype=self.clip_dtype)
         self._buffer[self._write_cursor] = clip
 
         # Hackish way to increment the write cursor- the "normal" way doesn't work for np.memmap
