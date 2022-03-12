@@ -154,6 +154,7 @@ class ClipManager:
             self.clip_file, dtype=self.clip_dtype, mode='r' if self.read_only else 'r+',
             offset=16, shape=(new_capacity,)
         )
+        self._capacity[:] = new_capacity
     
     def snapshot(self) -> np.ndarray:
         """

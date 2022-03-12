@@ -25,14 +25,15 @@ def test_database_creation():
         assert len(manager) == 1
         assert manager[0].seed == 42
 
-        # Now add 10 more clips, and check to see if the database has been extended
-        for i in range(manager.capacity):
+        # Make the manager exceed its current capacity
+        old_capacity = manager.capacity
+        for i in range(old_capacity):
             manager.add_clip(
                 Clip(i, time.time(), np.array([env.action_space.sample()] * CLIP_LENGTH))
             )
         
-        assert len(manager) == 11
-        assert manager.capacity > 10
+        assert len(manager) == old_capacity + 1
+        assert manager.capacity > old_capacity
 
 
 def test_concurrent_managers():
