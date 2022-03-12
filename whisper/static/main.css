@@ -1,14 +1,32 @@
 /* Determine dark/light mode based on user's system preferences */
 @media (prefers-color-scheme: dark) {
     :root {
-        --font-color: rgb(201, 209, 217);
         --bg-color: rgb(13, 17, 23);
+        --font-color: rgb(201, 209, 217);
+        --highlight-color: plum;
+        --nav-color: rgb(13, 17, 23);
+        --sidebar-color: rgb(35, 35, 35);
+        --shadow-color: black;
+    }
+
+    /* Specify color of SVG buttons */
+    .control svg {
+        fill: white;
     }
 }
 @media (prefers-color-scheme: light) {
     :root {
-        --font-color: #424242;
-        --bg-color: #fff;
+        --bg-color: white;
+        --font-color: rgb(22, 22, 22);
+        --highlight-color: rgb(52, 120, 246);   /* blue */
+        --nav-color: rgb(238, 238, 242);        /* Used by Firefox light theme */
+        --sidebar-color: rgb(245, 245, 245);    /* TensorBoard light theme */
+        --shadow-color: gray;
+    }
+
+    /* Specify color of SVG buttons */
+    .control svg {
+        fill: var(--highlight-color);
     }
 }
 
@@ -23,7 +41,7 @@ body {
 header {
     border-bottom: rgb(55, 59, 65) solid 1px;
     display: flex;
-    filter: drop-shadow(0px 4px 4px black);
+    filter: drop-shadow(0px 4px 4px var(--shadow-color));
     height: 1.75rem;
     justify-content: space-between;
 }
@@ -41,20 +59,33 @@ header {
 
 /* Top bar and sidebar colors, copied from GitHub */
 .nav {
-    background-color: rgb(23, 27, 33);
-    color: rgb(240, 246, 252);
+    background-color: var(--nav-color);
+    color: var(--font-color);
     padding: 1rem 2rem;
 }
-
 .nav-item {
     font-size: 1.5rem;
     font-weight: bold;
 }
 
+/* Clickable items in sidebar or nav bar */
+.control {
+    border: none;
+    cursor: pointer;
+    user-select: none;
+}
+.control:hover {
+    color: var(--highlight-color);
+}
+/* Since we use SVG buttons we need to specify a nonzero size */
+.control svg {
+    height: 1.5rem;
+}
+
 
 /*** Sidebar ***/
 .sidebar {
-    background-color: rgb(35, 35, 35);
+    background-color: var(--sidebar-color);
     border-right: rgb(55, 59, 65) solid 1px;
     float: left;
     height: calc(100vh - 2rem);    /* Height of the entire page minus the nav bar */
@@ -72,17 +103,8 @@ header {
     border-top: rgb(55, 59, 65) solid 1px;
     overflow-y: auto;
 }
-
-/* Clickable sidebar items */
-.control {
-    cursor: pointer;
-    user-select: none;
-}
-.control:hover {
-    color: plum;
-}
 .control input {
-    display: none;          /* Hide the checkbox */
+    display: none;          /* Hide the checkbox or radio button */
 }
 .show-hide {
     float: right;
@@ -103,8 +125,8 @@ header {
     transform: rotate(90deg);
     transition: ease-in 0.2s;
 }
-/* The name of the selected run should be in bold and plum */
+/* The name of the selected run should be in bold and highlighted */
 .run input:checked + span {
     font-weight: bold;
-    color: plum;
+    color: var(--highlight-color);
 }

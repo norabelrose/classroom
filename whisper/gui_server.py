@@ -43,27 +43,30 @@ class GuiServer:
             if num_tokens > 0 and token not in self.tokens:
                 return "Invalid token"
             
-            # Get list of experiments & runs
-            runs = {}
-            for path in self.experiment_dir.iterdir():
-                if not path.is_dir():
-                    continue
-
-                name = path.name
-                if name.startswith('.'):
-                    continue
-
-                runs[name] = [
-                    child.name
-                    for child in path.iterdir()
-                    if child.is_dir()
-                ]
-            
             return render_template(
-                'home.html', experiments=runs, instructions=instructions
+                'home.html', experiments=self.collect_runs(), instructions=instructions
             )
         
         self.app = app
+    
+    def collect_runs(self) -> dict[str, list[str]]:
+        """Walks the experiment directory and returns a dict of the form {experiment_name: [run_name, ...]}."""
+        runs = {}
+        for path in self.experiment_dir.iterdir():
+            if not path.is_dir():
+                continue
+
+            name = path.name
+            if name.startswith('.'):
+                continue
+
+            runs[name] = [
+                child.name
+                for child in path.iterdir()
+                if child.is_dir()
+            ]
+        
+        return runs
     
     def run(self):
         """Run the Flask app."""
