@@ -14,10 +14,10 @@
 
 body {
     background-color: var(--bg-color);
-    height: 100vh;
 
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    margin: 0;  /* Allow nav bar to reach to the edges */
+    margin: 0;              /* Allow nav bar to reach to the edges */
+    overflow-y: hidden;     /* Never show scroll bars for the entire page */
 }
 
 header {
@@ -28,7 +28,7 @@ header {
 }
 
 /* Contains the sidebar and the content div */
-#container {
+.container {
     display: flex;
     padding: 0;
 }
@@ -50,10 +50,60 @@ header {
     font-weight: bold;
 }
 
+
+/*** Sidebar ***/
 .sidebar {
-    border: rgb(55, 59, 65) solid 1px;
+    background-color: rgb(35, 35, 35);
+    border-right: rgb(55, 59, 65) solid 1px;
     float: left;
-    height: 100%;
-    position: sticky;
-    width: 20rem;
+    height: calc(100vh - 110px);    /* Height of the entire page minus the nav bar */
+    width: 16rem;
+}
+.sidebar-hidden {
+    left: -14rem;
+    position: absolute;
+}
+.sidebar-list {
+    line-height: 1.8;       /* Slightly more space between items */
+    list-style-type: none;  /* Remove bullets */
+}
+.sidebar-section {
+    border-top: rgb(55, 59, 65) solid 1px;
+    overflow-y: auto;
+}
+
+/* Clickable sidebar items */
+.control {
+    cursor: pointer;
+    user-select: none;
+}
+.control:hover {
+    color: plum;
+}
+.control input {
+    display: none;          /* Hide the checkbox */
+}
+.show-hide {
+    float: right;
+}
+
+/* List of experiments */
+.experiment-list {
+    padding: 0;             /* Remove indentation */
+}
+.caret {
+    display: inline-block;
+    font-size: small;
+    margin-right: 6px;
+    transform: rotate(180deg);
+}
+/* Rotate the caret when the checkbox is checked & animate the transition */
+.experiment input:checked + .caret {
+    transform: rotate(90deg);
+    transition: ease-in 0.2s;
+}
+/* The name of the selected run should be in bold and plum */
+.run input:checked + span {
+    font-weight: bold;
+    color: plum;
 }

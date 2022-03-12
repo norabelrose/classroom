@@ -1,6 +1,7 @@
 from flask import Flask, render_template
 from pathlib import Path
 from typing import Optional
+import os
 import secrets
 
 
@@ -8,19 +9,6 @@ INSTRUCTIONS = [
     "You will see a task description and two videos of agents attempting to perform that task",
     "Decide which agent is coming closer to performing that task well",
     "Press the appropriate button",
-]
-
-EXPERIMENTS = [
-    "Breakout",
-    "Pong",
-    "Space Invaders",
-    "Qbert",
-    "Seaquest",
-    "Ms. Pacman",
-    "Assault",
-    "Boxing",
-    "LunarLander",
-    "BipedalWalker",
 ]
 
 
@@ -31,8 +19,10 @@ class GuiServer:
             port: int = 5000,
             instructions: list[str] = INSTRUCTIONS,
             debug: bool = False,
+            experiment_dir: Optional[Path] = None,
             num_tokens: int = 0,    # Number of user tokens to generate; 0 means no token authentication
         ):
+        self.experiment_dir = experiment_dir or Path.cwd()
         self.port = port
 
         root = Path(__file__).parent
@@ -53,8 +43,24 @@ class GuiServer:
             if num_tokens > 0 and token not in self.tokens:
                 return "Invalid token"
             
+            # Get list of experiments & runs
+            runs = {}
+            for path in self.experiment_dir.iterdir():
+                if not path.is_dir():
+                    continue
+
+                name = path.name
+                if name.startswith('.'):
+                    continue
+
+                runs[name] = [
+                    child.name
+                    for child in path.iterdir()
+                    if child.is_dir()
+                ]
+            
             return render_template(
-                'home.html', experiments=EXPERIMENTS, instructions=instructions
+                'home.html', experiments=runs, instructions=instructions
             )
         
         self.app = app

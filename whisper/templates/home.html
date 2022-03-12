@@ -1,21 +1,45 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>{{ title }}</title>
+  <title>Whisper</title>
+  <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.svg') }}">
   <link rel="stylesheet" type="text/css" href="/static/main.css" />
 </head>
 <body>
   <header class="nav">
     <span class="nav-item">Whisper</span>
   </header>
-  <div id="container">
+  <div class="container">
     <nav class="nav sidebar">
+      <label class="control show-hide" title="Show/Hide Sidebar">
+        <input type="checkbox"/>«
+      </label>
       <h3>Experiments</h3>
-      <ul>
-        {% for experiment in experiments %}
-        <li> {{ experiment }} </li>
-        {% endfor %}
-      </ul>
+      <div class="sidebar-section">
+        <ul class="sidebar-list experiment-list">
+          {% for exp_name, runs in experiments.items() %}
+          <label>
+            <li class="control experiment">
+              <input type="checkbox" onchange="
+                const runList = document.getElementById('run-list-{{ exp_name }}');
+                runList.style.display = this.checked ? 'none' : 'block';
+                "/>
+              <span class="caret">^</span> {{ exp_name }}
+            </li>
+          </label>
+          <ul class="run-list sidebar-list" id="run-list-{{ exp_name }}">
+            {% for run in runs %}
+            <label for="{{ exp_name }}/{{ run }}">
+              <li class="control run">
+                <input type="radio" id="{{ exp_name }}/{{ run }}" name="selected-run"/>
+                <span>{{ run }}</span>
+              </li>
+            </label>
+            {% endfor %}
+          </ul>
+          {% endfor %}
+        </ul>
+      </div>
     </nav>
     <div class="content">
       <h3>How this works</h3>
