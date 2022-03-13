@@ -4,24 +4,40 @@
   <title>Whisper</title>
   <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.svg') }}">
   <link rel="stylesheet" type="text/css" href="/static/main.css" />
+  <link rel="stylesheet" type="text/css" href="/static/modal.css" />
 </head>
 <body>
   <!--- Navigation Bar --->
   <header class="nav">
     <span class="nav-item">Whisper</span>
-    <span class="control nav-item" title="Full Screen Mode" onclick="document.documentElement.requestFullscreen();">
-      <!-- Full Screen Icon -->
+    <span class="spacer"></span>
+    <!-- Full Screen Icon -->
+    <span class="control nav-item" title="Toggle Full Screen Mode" onclick="
+    document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+    ">
       <svg viewBox="0 0 512 512">
         <polygon points="126.533,102.4 199.111,102.4 199.111,68.267 68.267,68.267 68.267,199.111 102.4,199.111 102.4,126.538 198.422,222.558 222.556,198.423"/>
         <polygon points="222.557,313.581 198.422,289.445 102.4,385.467 102.4,312.889 68.267,312.889 68.267,443.733 199.111,443.733 199.111,409.6 126.538,409.6 "/>
         <polygon points="409.6,312.889 409.6,385.467 313.578,289.444 289.444,313.578 385.462,409.6 312.889,409.6 312.889,443.733 443.733,443.733 443.733,312.889 "/>
         <polygon points="312.889,68.267 312.889,102.4 385.467,102.4 289.444,198.423 313.578,222.558 409.6,126.538 409.6,199.111 443.733,199.111 443.733,68.267 "/>
       </svg>
-    </button>
+    </span>
+    <!-- Help Icon -->
+    <span class="control nav-item" title="Help" onclick="
+    document.getElementById('help-modal').style.display = 'block';
+    ">
+      <svg width="36px" height="36px" viewBox="0 0 36 36" version="1.1"  preserveAspectRatio="xMidYMid meet">
+        <path d="M18,2A16,16,0,1,0,34,18,16,16,0,0,0,18,2Zm-.22,25.85a1.65,1.65,0,1,1,1.65-1.65A1.65,1.65,0,0,1,17.78,27.85Zm1.37-8.06v1.72a1.37,1.37,0,0,1-1.3,1.36h-.11a1.34,1.34,0,0,1-1.39-1.3c0-.44,0-2.76,0-2.76a1.19,1.19,0,0,1,1.12-1.31c1.57-.12,4.18-.7,4.18-3.25,0-1.83-1.41-3.07-3.43-3.07a5.31,5.31,0,0,0-4,1.92,1.36,1.36,0,0,1-2.35-.9,1.43,1.43,0,0,1,.43-1,7.77,7.77,0,0,1,6-2.69c3.7,0,6.28,2.3,6.28,5.6C24.58,17.16,22.61,19.2,19.15,19.79Z" class="clr-i-solid clr-i-solid-path-1"></path>
+        <rect x="0" y="0" width="36" height="36" fill-opacity="0"/>
+      </svg>
+    </span>
   </header>
+
+  <!--- Main Content --->
   <div class="container">
     <!--- Sidebar --->
-    <nav class="nav sidebar">
+    <div class="nav sidebar">
+      <h3 class="no-runs-found" style="display: none;">No Runs Found</h3>
       <label class="control show-hide" title="Show/Hide Sidebar">
         <input type="checkbox"/>«
       </label>
@@ -51,14 +67,25 @@
           {% endfor %}
         </ul>
       </div>
-    </nav>
+    </div>
     <div class="content">
-      <h3>How this works</h3>
-      <ul>
-        {% for instruction in instructions %}
-        <li> {{ instruction }} </li>
-        {% endfor %}
-      </ul>
+      <!-- Clips go here -->
+    </div>
+
+    <!-- Help modal (not usually visible) -->
+    <div id="help-modal" class="modal">
+      <!-- Help/instructions -->
+      <div class="modal-content">
+        <span class="control close" title="Close" onclick="
+          document.getElementById('help-modal').style.display = 'none';
+          ">&times;</span>
+        <h3>Instructions</h3>
+        <ul>
+          {% for instruction in instructions %}
+          <li> {{ instruction }} </li>
+          {% endfor %}
+        </ul>
+      </div>
     </div>
   </div>
 </body>

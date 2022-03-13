@@ -13,6 +13,9 @@
     .control svg {
         fill: white;
     }
+    .control:hover svg {
+        fill: var(--highlight-color);
+    }
 }
 @media (prefers-color-scheme: light) {
     :root {
@@ -32,8 +35,9 @@
 
 body {
     background-color: var(--bg-color);
+    color: var(--font-color);
 
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
     margin: 0;              /* Allow nav bar to reach to the edges */
     overflow-y: hidden;     /* Never show scroll bars for the entire page */
 }
@@ -41,9 +45,13 @@ body {
 header {
     border-bottom: rgb(55, 59, 65) solid 1px;
     display: flex;
-    filter: drop-shadow(0px 4px 4px var(--shadow-color));
+    box-shadow: 0rem 0.3rem 0.3rem var(--shadow-color);
     height: 1.75rem;
     justify-content: space-between;
+    z-index: 999;        /* Make sure nav bar is on top */
+}
+.spacer {
+    flex: 1;
 }
 
 /* Contains the sidebar and the content div */
@@ -53,7 +61,6 @@ header {
 }
 
 .content {
-    color: var(--font-color);
     margin: 2rem;
 }
 
@@ -66,6 +73,7 @@ header {
 .nav-item {
     font-size: 1.5rem;
     font-weight: bold;
+    padding-left: 0.75rem;  /* Bit more spacing between nav items */
 }
 
 /* Clickable items in sidebar or nav bar */
@@ -86,10 +94,17 @@ header {
 /*** Sidebar ***/
 .sidebar {
     background-color: var(--sidebar-color);
-    border-right: rgb(55, 59, 65) solid 1px;
+    border-color: rgb(55, 59, 65);
+    border-bottom-right-radius: 10px;
+    border-style: solid;
+    border-width: 0px 1px 1px 0px;
+    box-shadow: 0.25rem 0.25rem 0.3rem var(--shadow-color);
     float: left;
-    height: calc(100vh - 2rem);    /* Height of the entire page minus the nav bar */
-    width: 16rem;
+    overflow: scroll;
+    /* resize: vertical; */
+    min-width: 10rem;
+    width: 15rem;
+    z-index: 1;     /* Stay above content but not the nav bar */
 }
 .sidebar-hidden {
     left: -14rem;
@@ -129,4 +144,10 @@ header {
 .run input:checked + span {
     font-weight: bold;
     color: var(--highlight-color);
+}
+
+.no-runs-found {
+    position: absolute;
+    text-align: center;
+    vertical-align: middle;
 }
