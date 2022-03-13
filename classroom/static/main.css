@@ -5,7 +5,7 @@
         --font-color: rgb(201, 209, 217);
         --highlight-color: plum;
         --nav-color: rgb(13, 17, 23);
-        --sidebar-color: rgb(35, 35, 35);
+        --menu-color: rgb(35, 35, 35);
         --shadow-color: black;
     }
 
@@ -23,7 +23,7 @@
         --font-color: rgb(22, 22, 22);
         --highlight-color: rgb(52, 120, 246);   /* blue */
         --nav-color: rgb(238, 238, 242);        /* Used by Firefox light theme */
-        --sidebar-color: rgb(245, 245, 245);    /* TensorBoard light theme */
+        --menu-color: rgb(245, 245, 245);    /* TensorBoard light theme */
         --shadow-color: gray;
     }
 
@@ -39,6 +39,7 @@ body {
 
     /* Try to use the "system" sans serif font; -apple-system for macOS, Cantarell for GNOME */
     font-family: -apple-system, Cantarell, 'Segoe UI', Helvetica, Arial, sans-serif;
+    height: 100vh;
     margin: 0;              /* Allow nav bar to reach to the edges */
     overflow-y: hidden;     /* Never show scroll bars for the entire page */
 }
@@ -54,30 +55,34 @@ header {
 .spacer {
     flex: 1;
 }
-
-/* Contains the sidebar and the content div */
-.container {
-    display: flex;
-    padding: 0;
+#select-run-label {
+    text-align: center;
+    vertical-align: middle;
 }
 
 .content {
-    margin: 2rem;
+    align-items: center;
+    display: flex;
+    height: 100%;
+    justify-content: center;
+    padding: 0;
+    vertical-align: middle;
+    width: 100%;
 }
 
-/* Top bar and sidebar colors, copied from GitHub */
+/* Top bar and menu colors, copied from GitHub */
 .nav {
     background-color: var(--nav-color);
     color: var(--font-color);
     padding: 1rem 2rem;
 }
 .nav-item {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     font-weight: bold;
     padding-left: 0.75rem;  /* Bit more spacing between nav items */
 }
 
-/* Clickable items in sidebar or nav bar */
+/* Clickable items in menu or nav bar */
 .control {
     border: none;
     cursor: pointer;
@@ -92,38 +97,16 @@ header {
 }
 
 
-/*** Sidebar ***/
-.sidebar {
-    background-color: var(--sidebar-color);
-    border-color: rgb(55, 59, 65);
-    border-bottom-right-radius: 10px;
-    border-style: solid;
-    border-width: 0px 1px 1px 0px;
-    box-shadow: 0.25rem 0.25rem 0.3rem var(--shadow-color);
-    float: left;
-    overflow: scroll;
-    /* resize: vertical; */
-    min-width: 10rem;
-    width: 15rem;
-    z-index: 1;     /* Stay above content but not the nav bar */
+/*** Experiment menu ***/
+.menu {
+    width: 20rem !important; /* Override default width of modal windows */
 }
-.sidebar-hidden {
-    left: -14rem;
-    position: absolute;
-}
-.sidebar-list {
+.menu-list {
     line-height: 1.8;       /* Slightly more space between items */
     list-style-type: none;  /* Remove bullets */
 }
-.sidebar-section {
-    border-top: rgb(55, 59, 65) solid 1px;
-    overflow-y: auto;
-}
 .control input {
     display: none;          /* Hide the checkbox or radio button */
-}
-.show-hide {
-    float: right;
 }
 
 /* List of experiments */

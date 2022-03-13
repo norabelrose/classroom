@@ -2,7 +2,7 @@ from .clip import Clip
 from dataclasses import astuple
 from datetime import date
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 import gym
 import json
 import numpy as np
@@ -11,7 +11,7 @@ import pickle
 
 class ClipManager:
     """
-    `ClipManager` objects manage large memory-mapped buffers of clips, along with metadata about the
+    `ClipManager` objects manage memory-mapped buffers of clips, along with metadata about the
     environment used to generate them. They can run either in read-only mode or read-write mode.
     No locking is used to ensure consistency, so many read-only managers can run in parallel on the
     same buffer, but only one read-write manager should be running at a time.
@@ -20,11 +20,12 @@ class ClipManager:
 
     def __init__(
             self,
-            db_path: Path,
+            db_path: Union[Path, str],
             env: Optional[gym.Env] = None,
             clip_length: Optional[int] = None,
             read_only: bool = False,
         ):
+        db_path = Path(db_path)
         self.db_path = db_path
 
         # Database directories are expected to contain the following files:
@@ -83,6 +84,7 @@ class ClipManager:
             ('timestamp', np.float64),
             ('actions', env.action_space.dtype, (clip_length, *env.action_space.shape)),  # type: ignore[attr-defined]
         ])
+        self.env = env
 
         # The first 16 bytes of the buffer are reserved for the capacity and write cursor
         self._capacity = np.memmap(
@@ -120,7 +122,7 @@ class ClipManager:
         return cursor
     
     def __repr__(self) -> str:
-        return f"ClipServer(db_path={str(self.db_path)}, read_only={self.read_only})"
+        return f"ClipManager(db_path={str(self.db_path)}, read_only={self.read_only})"
     
     def add_clip(self, clip: Clip):
         """
@@ -145,8 +147,23 @@ class ClipManager:
 
     @property
     def read_only(self) -> bool:
-        """Indicates whether the ClipServer object can be used to write to the database."""
+        """Indicates whether the ClipManager object can be used to write to the database."""
         return not self._buffer.flags.writeable
+    
+    def render_clip(self, index: int) -> np.ndarray:
+        """Render a clip from the database."""
+        clip = self[index]
+        frames = []
+
+        self.env.seed(clip.seed)
+        self.env.reset()
+        frames.append(self.env.render(mode='rgb_array'))
+
+        for action in clip.actions:
+            self.env.step(action)
+            frames.append(self.env.render(mode='rgb_array'))
+        
+        return np.stack(frames)
     
     def reserve_capacity(self, new_capacity: int):
         """Re-map the buffer to a new capacity."""        

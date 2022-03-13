@@ -3,17 +3,29 @@
 <head>
   <title>Classroom</title>
   <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.svg') }}">
-  <link rel="stylesheet" type="text/css" href="/static/main.css" />
-  <link rel="stylesheet" type="text/css" href="/static/modal.css" />
+  <link rel="stylesheet" href="/static/main.css" />
+  <link rel="stylesheet" href="/static/modal.css" />
+  <script src="/static/modal.js"></script>
 </head>
 <body>
   <!--- Navigation Bar --->
   <header class="nav">
+    <!-- Menu Icon -->
+    <span class="control nav-item" id="menu" title="Experiments" onclick="openModal('experiment');">
+      <svg viewBox="0 0 384.97 384.97">
+        <path d="M12.03,84.212h360.909c6.641,0,12.03-5.39,12.03-12.03c0-6.641-5.39-12.03-12.03-12.03H12.03
+          C5.39,60.152,0,65.541,0,72.182C0,78.823,5.39,84.212,12.03,84.212z"/>
+        <path d="M372.939,180.455H12.03c-6.641,0-12.03,5.39-12.03,12.03s5.39,12.03,12.03,12.03h360.909c6.641,0,12.03-5.39,12.03-12.03
+          S379.58,180.455,372.939,180.455z"/>
+        <path d="M372.939,300.758H12.03c-6.641,0-12.03,5.39-12.03,12.03c0,6.641,5.39,12.03,12.03,12.03h360.909
+          c6.641,0,12.03-5.39,12.03-12.03C384.97,306.147,379.58,300.758,372.939,300.758z"/>
+      </svg>
+    </span>
     <!-- Undo Button -->
     <span class="control nav-item" id="undo" title="Undo">
       <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path d="M3.92399915,11.7649995 C3.77764399,11.9991677 3.4691688,12.0703543 3.23500053,11.9239992 C3.00083226,11.777644 2.92964568,11.4691688 3.07600085,11.2350005 C4.72258653,8.60046343 7.61021891,7 10.7169906,7 L11,7 C15.7839371,7 19.7251234,10.7427037 19.9862823,15.4990868 C19.9927927,15.617659 19.9970334,16.2631224 19.9999986,17.4988002 C20.0006612,17.7749418 19.7773414,17.9993359 19.5011998,17.9999986 C19.2250582,18.0006612 19.0006641,17.7773414 19.0000014,17.5011998 C18.9971538,16.3145297 18.9927506,15.6443258 18.9877863,15.5539113 C18.7556998,11.3270125 15.2522496,8 11,8 L10.7169906,8 C7.95500894,8 5.38784649,9.42284374 3.92399915,11.7649995 Z M8.5,11 C8.77614237,11 9,11.2238576 9,11.5 C9,11.7761424 8.77614237,12 8.5,12 L3.5,12 C3.22385763,12 3,11.7761424 3,11.5 L3,6.5 C3,6.22385763 3.22385763,6 3.5,6 C3.77614237,6 4,6.22385763 4,6.5 L4,11 L8.5,11 Z"/>
-      </svg>      
+      </svg>
     </span>
     <span class="spacer"></span>
     <span class="nav-item">Classroom</span>
@@ -30,9 +42,7 @@
       </svg>
     </span>
     <!-- Help Icon -->
-    <span class="control nav-item" title="Help" onclick="
-    document.getElementById('help-modal').style.display = 'block';
-    ">
+    <span class="control nav-item" title="Help" onclick="openModal('help');">
       <svg width="36px" height="36px" viewBox="0 0 36 36" version="1.1"  preserveAspectRatio="xMidYMid meet">
         <path d="M18,2A16,16,0,1,0,34,18,16,16,0,0,0,18,2Zm-.22,25.85a1.65,1.65,0,1,1,1.65-1.65A1.65,1.65,0,0,1,17.78,27.85Zm1.37-8.06v1.72a1.37,1.37,0,0,1-1.3,1.36h-.11a1.34,1.34,0,0,1-1.39-1.3c0-.44,0-2.76,0-2.76a1.19,1.19,0,0,1,1.12-1.31c1.57-.12,4.18-.7,4.18-3.25,0-1.83-1.41-3.07-3.43-3.07a5.31,5.31,0,0,0-4,1.92,1.36,1.36,0,0,1-2.35-.9,1.43,1.43,0,0,1,.43-1,7.77,7.77,0,0,1,6-2.69c3.7,0,6.28,2.3,6.28,5.6C24.58,17.16,22.61,19.2,19.15,19.79Z" class="clr-i-solid clr-i-solid-path-1"/>
       </svg>
@@ -40,60 +50,56 @@
   </header>
 
   <!--- Main Content --->
-  <div class="container">
-    <!--- Sidebar --->
-    <div class="nav sidebar">
-      <h3 class="no-runs-found" style="display: none;">No Runs Found</h3>
-      <label class="control show-hide" title="Show/Hide Sidebar">
-        <input type="checkbox"/>«
-      </label>
+  <div class="content">
+    <!-- Clips go here -->
+    <h3 id="select-run-label">Select a Run</h3>
+  </div>
+
+  <!-- Experiment list modal -->
+  <div class="modal" id="experiment-modal">
+    <div class="modal-content nav menu" id="experiment-window">
+      <span class="control close" title="Close" onclick="closeModal('experiment');">&times;</span>
       <h3>Experiments</h3>
-      <div class="sidebar-section">
-        <ul class="sidebar-list experiment-list">
-          {% for exp_name, runs in experiments %}
-          <label>
-            <li class="control experiment">
-              <input type="checkbox" onchange="
-                const runList = document.getElementById('run-list-{{ exp_name }}');
-                runList.style.display = this.checked ? 'none' : 'block';
-                "/>
-              <svg class="caret">
-                <path d="M4.18179 6.18181C4.35753 6.00608 4.64245 6.00608 4.81819 6.18181L7.49999 8.86362L10.1818 6.18181C10.3575 6.00608 10.6424 6.00608 10.8182 6.18181C10.9939 6.35755 10.9939 6.64247 10.8182 6.81821L7.81819 9.81821C7.73379 9.9026 7.61934 9.95001 7.49999 9.95001C7.38064 9.95001 7.26618 9.9026 7.18179 9.81821L4.18179 6.81821C4.00605 6.64247 4.00605 6.35755 4.18179 6.18181Z" />
-              </svg> {{ exp_name }}
+      <h3 class="no-runs-found" style="display: none;">No Runs Found</h3>
+      <ul class="menu-list experiment-list">
+        {% for exp_name, runs in experiments %}
+        <label>
+          <li class="control experiment">
+            <input type="checkbox" onchange="
+              const runList = document.getElementById('run-list-{{ exp_name }}');
+              runList.style.display = this.checked ? 'none' : 'block';
+              "/>
+            <svg class="caret">
+              <path d="M4.18179 6.18181C4.35753 6.00608 4.64245 6.00608 4.81819 6.18181L7.49999 8.86362L10.1818 6.18181C10.3575 6.00608 10.6424 6.00608 10.8182 6.18181C10.9939 6.35755 10.9939 6.64247 10.8182 6.81821L7.81819 9.81821C7.73379 9.9026 7.61934 9.95001 7.49999 9.95001C7.38064 9.95001 7.26618 9.9026 7.18179 9.81821L4.18179 6.81821C4.00605 6.64247 4.00605 6.35755 4.18179 6.18181Z" />
+            </svg> {{ exp_name }}
+          </li>
+        </label>
+        <ul class="run-list menu-list" id="run-list-{{ exp_name }}">
+          {% for run in runs %}
+          <label for="{{ exp_name }}/{{ run }}">
+            <li class="control run">
+              <input type="radio" id="{{ exp_name }}/{{ run }}" name="selected-run"/>
+              <span>{{ run }}</span>
             </li>
           </label>
-          <ul class="run-list sidebar-list" id="run-list-{{ exp_name }}">
-            {% for run in runs %}
-            <label for="{{ exp_name }}/{{ run }}">
-              <li class="control run">
-                <input type="radio" id="{{ exp_name }}/{{ run }}" name="selected-run"/>
-                <span>{{ run }}</span>
-              </li>
-            </label>
-            {% endfor %}
-          </ul>
           {% endfor %}
         </ul>
-      </div>
+        {% endfor %}
+      </ul>
     </div>
-    <div class="content">
-      <!-- Clips go here -->
-    </div>
+  </div>
 
-    <!-- Help modal (not usually visible) -->
-    <div id="help-modal" class="modal">
-      <!-- Help/instructions -->
-      <div class="modal-content">
-        <span class="control close" title="Close" onclick="
-          document.getElementById('help-modal').style.display = 'none';
-          ">&times;</span>
-        <h3>Instructions</h3>
-        <ul>
-          {% for instruction in instructions %}
-          <li> {{ instruction }} </li>
-          {% endfor %}
-        </ul>
-      </div>
+  <!-- Help modal (not usually visible) -->
+  <div class="modal" id="help-modal">
+    <!-- Help/instructions -->
+    <div class="modal-content" id="help-window">
+      <span class="control close" title="Close" onclick="closeModal('help');">&times;</span>
+      <h3>Instructions</h3>
+      <ul>
+        {% for instruction in instructions %}
+        <li> {{ instruction }} </li>
+        {% endfor %}
+      </ul>
     </div>
   </div>
 </body>

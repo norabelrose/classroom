@@ -8,6 +8,16 @@
         transform: scale(1);
     }
 }
+@keyframes pop-out {
+    from {
+        opacity: 1;
+        transform: scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+}
 
 /* Background for a modal display */
 .modal {
@@ -32,6 +42,9 @@
     margin: 15% auto; /* 15% from the top and centered */
     padding: 20px;
     width: 50%;
+}
+.modal-pop-out {
+    animation: pop-out 0.2s;
 }
 
 /* Title of the modal */
