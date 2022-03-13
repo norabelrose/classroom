@@ -26,7 +26,7 @@ class GuiServer:
         self.port = port
 
         root = Path(__file__).parent
-        app = Flask("Whisper", static_folder=root / 'static', template_folder=str(root / 'templates'))
+        app = Flask("Classroom", static_folder=root / 'static', template_folder=str(root / 'templates'))
         app.debug = debug
 
         # Simply generate a new secret key each time the app is run. This makes things simple and secure,
@@ -49,7 +49,7 @@ class GuiServer:
         
         self.app = app
     
-    def collect_runs(self) -> dict[str, list[str]]:
+    def collect_runs(self) -> list[tuple[str, list[str]]]:
         """Walks the experiment directory and returns a dict of the form {experiment_name: [run_name, ...]}."""
         runs = {}
         for path in self.experiment_dir.iterdir():
@@ -66,7 +66,7 @@ class GuiServer:
                 if child.is_dir()
             ]
         
-        return runs
+        return sorted(runs.items())
     
     def run(self):
         """Run the Flask app."""

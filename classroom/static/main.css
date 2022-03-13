@@ -37,7 +37,8 @@ body {
     background-color: var(--bg-color);
     color: var(--font-color);
 
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    /* Try to use the "system" sans serif font; -apple-system for macOS, Cantarell for GNOME */
+    font-family: -apple-system, Cantarell, 'Segoe UI', Helvetica, Arial, sans-serif;
     margin: 0;              /* Allow nav bar to reach to the edges */
     overflow-y: hidden;     /* Never show scroll bars for the entire page */
 }
@@ -132,12 +133,14 @@ header {
 .caret {
     display: inline-block;
     font-size: small;
-    margin-right: 6px;
-    transform: rotate(180deg);
+    height: 1rem;
+    margin-right: 0.4rem;
+    vertical-align: bottom;
+    width: 1rem;
 }
 /* Rotate the caret when the checkbox is checked & animate the transition */
 .experiment input:checked + .caret {
-    transform: rotate(90deg);
+    transform: rotate(-90deg);
     transition: ease-in 0.2s;
 }
 /* The name of the selected run should be in bold and highlighted */

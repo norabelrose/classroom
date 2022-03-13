@@ -1,5 +1,5 @@
 from pathlib import Path
-from whisper import Clip, ClipManager
+from classroom import Clip, ClipManager
 import gym
 import numpy as np
 import pytest

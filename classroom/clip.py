@@ -4,7 +4,7 @@ import numpy as np
 
 @dataclass(frozen=True)
 class Clip:
-    """In `whisper`, 'clips' are data structures that store the (minimal) information
+    """In `classroom`, 'clips' are data structures that store the (minimal) information
     necessary to reconstruct a segment of an agent's trajectory so that it can be
     evaluated by a human. In a simulated environment which is deterministic conditioned
     on its random seed, only the seed and the sequence of actions taken by the agent
