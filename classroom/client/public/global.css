@@ -1,0 +1,79 @@
+/* Determine dark/light mode based on user's system preferences */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg-color: rgb(13, 17, 23);
+        --font-color: rgb(201, 209, 217);
+        --highlight-color: plum;
+        --nav-color: rgb(13, 17, 23);
+        --nav-gray: lightgray;
+        --nav-button-color: white;
+        --menu-color: rgb(35, 35, 35);
+        --shadow-color: black;
+    }
+}
+@media (prefers-color-scheme: light) {
+    :root {
+        --bg-color: white;
+        --font-color: rgb(22, 22, 22);
+        --highlight-color: rgb(52, 120, 246);   /* blue */
+        --nav-color: rgb(238, 238, 242);        /* Used by Firefox light theme */
+        --nav-gray: gray;
+        --nav-button-color: var(--highlight-color);
+        --menu-color: rgb(245, 245, 245);    /* TensorBoard light theme */
+        --shadow-color: gray;
+    }
+}
+
+html, body {
+	position: relative;
+	width: 100%;
+	height: 100%;
+}
+
+body {
+	background-color: var(--bg-color);
+    color: var(--font-color);
+
+	margin: 0;
+	overflow-y: hidden;     /* Never show scroll bars for the entire page */
+	box-sizing: border-box;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell,
+				"Helvetica Neue", sans-serif;
+}
+
+.fullscreen {
+	position: absolute;
+	left: 0;
+	top: 0;
+	height: 100%;
+	width: 100%;
+}
+
+/* Clickable items in nav bar or wherever else */
+.control {
+	border: none;
+	cursor: pointer;
+	user-select: none;
+}
+.control:hover {
+	border-color: var(--highlight-color);
+	color: var(--highlight-color);
+}
+.control:hover svg {
+	fill: var(--highlight-color);
+}
+
+input, button, select, textarea {
+	font-family: inherit;
+	font-size: inherit;
+	-webkit-padding: 0.4em 0;
+	padding: 0.4em;
+	margin: 0 0 0.5em 0;
+	box-sizing: border-box;
+	border: 1px solid #ccc;
+	border-radius: 2px;
+}
+
+input:disabled {
+	color: #ccc;
+}

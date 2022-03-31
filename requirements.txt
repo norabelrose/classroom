@@ -1,2 +1,4 @@
 gym
-flask
+networkx
+watchdog
+werkzeug

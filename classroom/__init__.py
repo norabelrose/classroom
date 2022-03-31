@@ -1,2 +1,2 @@
-from .clip import Clip
 from .clip_manager import ClipManager
+from .pref_graph import PrefGraph

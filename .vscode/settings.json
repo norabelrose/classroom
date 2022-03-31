@@ -1,10 +1,18 @@
-// We intentionally include this file in the repo to make it easier
-// for contributors who use VSCode to follow type checking conventions
+// We intentionally include this file in the repo to standardize the linting & testing
 {
+    // Hide generated JavaScript files from the editor
+    "files.exclude": {
+        "**/*.js": { "when": "$(basename).ts" },
+        "**/*.js.map": true
+    },
     "python.analysis.typeCheckingMode": "basic",
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportPrivateImportUsage": "none",
+    },
     "python.testing.pytestArgs": [
         "tests"
     ],
     "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true
+    "python.testing.pytestEnabled": true,
+    "python.formatting.provider": "black"
 }

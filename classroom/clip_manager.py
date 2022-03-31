@@ -1,28 +1,34 @@
-from .clip import Clip
-from dataclasses import astuple
-from datetime import date
+from numpy.typing import ArrayLike
 from pathlib import Path
-from typing import Optional, Union
-import gym
-import json
+from typing import Any, Optional, Union
 import numpy as np
 import pickle
 
 
 class ClipManager:
     """
-    `ClipManager` objects manage memory-mapped buffers of clips, along with metadata about the
-    environment used to generate them. They can run either in read-only mode or read-write mode.
+    `ClipManager` objects are handles for memory-mapped databases of clips, along with metadata about
+    the environment used to generate them. They can be used either in read-only mode or read-write mode.
     No locking is used to ensure consistency, so many read-only managers can run in parallel on the
     same buffer, but only one read-write manager should be running at a time.
+
+    Args:
+        db_path: The path to the database directory.
+        clip_dtype: The NumPy dtype of the clips in the database.
+        clip_shape: The shape of the clips in the database. This defaults to an empty tuple, because
+            we assume the clips are 'scalars' with structured dtypes by default.
+        metadata: Any picklable object representing the environment used to generate the clips.
+            It will be saved to the database directory as a metadata.pickle file.
+        read_only: Whether this database handle is read-only.
     """
     DEFAULT_CAPACITY = 1024
 
     def __init__(
             self,
             db_path: Union[Path, str],
-            env: Optional[gym.Env] = None,
-            clip_length: Optional[int] = None,
+            clip_dtype: Optional[np.dtype] = None,
+            clip_shape: tuple[int, ...] = (),
+            metadata: Optional[Any] = None,
             read_only: bool = False,
         ):
         db_path = Path(db_path)
@@ -30,27 +36,18 @@ class ClipManager:
 
         # Database directories are expected to contain the following files:
         # - clips.npy: the raw clip buffer
-        # - env.pickle: the pickled Gym environment
-        # - info.json: miscellaneous metadata about the experiment
+        # - metadata.pickle: a pickled representation of the environment
         self.clip_file = db_path / 'clips.npy'
-        env_file = db_path / 'env.pickle'
-        info_file = db_path / 'info.json'
+        metadata_file = db_path / 'metadata.pickle'
 
         # Memory map the clip buffer if it already exists
         if self.clip_file.exists():
-            assert env_file.exists(), f"Database path {db_path} must contain an env.pickle file"
-            assert info_file.exists(), f"Database path {db_path} must contain an info.json file"
-            assert clip_length is None, f"Cannot specify a clip_length for an existing database"
-            assert env is None, "Cannot specify an environment for an existing database"
+            assert metadata_file.exists(), f"Database path {db_path} must contain an metadata.pickle file"
+            assert metadata is None, "Cannot specify an environment for an existing database"
 
             # First load the environment
-            with env_file.open('rb') as f:
-                env = pickle.load(f)
-            
-            # Now load the info.json file
-            with info_file.open('r') as f:
-                self.info = json.load(f)
-                clip_length = self.info['clip_length']
+            with metadata_file.open('rb') as f:
+                metadata = pickle.load(f)
             
             # Just read the first 16 bytes of the buffer to get the capacity and write cursor;
             # the rest of the buffer will be mapped on demand
@@ -58,7 +55,7 @@ class ClipManager:
 
         # Create a new database directory
         else:
-            assert env is not None, "Must provide a Gym environment to create a new database"
+            assert metadata is not None, "Must provide a Gym environment to create a new database"
             assert not read_only, "Cannot create a new database in read-only mode"
             mode = 'w+'
 
@@ -66,25 +63,11 @@ class ClipManager:
             db_path.mkdir(parents=True, exist_ok=True)
 
             # Save the environment
-            with env_file.open('wb') as f:
-                pickle.dump(env, f)
-            
-            # Create the info.json file
-            self.info = {
-                'clip_length': clip_length,
-                'created': date.today().isoformat(),
-            }
-            with info_file.open('w') as f:
-                json.dump(self.info, f, indent=2)
+            with metadata_file.open('wb') as f:
+                pickle.dump(metadata, f)
         
-        # Construct the NumPy structured data type for the clips
-        assert isinstance(env, gym.Env), "Environment must be a Gym environment"
-        self.clip_dtype = np.dtype([
-            ('seed', np.uint64),
-            ('timestamp', np.float64),
-            ('actions', env.action_space.dtype, (clip_length, *env.action_space.shape)),  # type: ignore[attr-defined]
-        ])
-        self.env = env
+        self.clip_dtype = clip_dtype
+        self.env = metadata
 
         # The first 16 bytes of the buffer are reserved for the capacity and write cursor
         self._capacity = np.memmap(
@@ -97,18 +80,18 @@ class ClipManager:
         capacity = max(self.DEFAULT_CAPACITY, self.capacity)
         self._buffer = np.memmap(
             self.clip_file, dtype=self.clip_dtype, mode=mode, offset=16,
-            shape=(capacity,)
+            shape=(capacity, *clip_shape)
         )
         # Initialize the capacity variable if needed
         if mode != 'r':
             self._capacity[:] = capacity
     
-    def __getitem__(self, index: int) -> Clip:
+    def __getitem__(self, index: int) -> np.ndarray:
         """Retrieve a clip from the database."""
         if index >= len(self):
             raise IndexError(f"Index {index} out of bounds")
         
-        return Clip.from_numpy(self._buffer[index])
+        return self._buffer[index]
     
     def __len__(self) -> int:
         """Number of clips available to be read in the database."""
@@ -124,16 +107,13 @@ class ClipManager:
     def __repr__(self) -> str:
         return f"ClipManager(db_path={str(self.db_path)}, read_only={self.read_only})"
     
-    def add_clip(self, clip: Clip):
-        """
-        Append a clip to the end of the buffer. This will fail if the database object is read-only.
-        """
+    def add_clip(self, clip: ArrayLike):
+        """Append a clip to the end of the buffer. This will fail if the database object is read-only."""
         # Check if we need to re-map the buffer to a new size
         if len(self) == self.capacity:
             self.reserve_capacity(self.capacity * 2)
         
-        array = np.array(astuple(clip), dtype=self.clip_dtype)
-        self._buffer[self._write_cursor] = array
+        self._buffer[self._write_cursor] = np.asarray(clip)
         self._write_cursor[:] = int(self._write_cursor) + 1
     
     @property
@@ -149,21 +129,6 @@ class ClipManager:
     def read_only(self) -> bool:
         """Indicates whether the ClipManager object can be used to write to the database."""
         return not self._buffer.flags.writeable
-    
-    def render_clip(self, index: int) -> np.ndarray:
-        """Render a clip from the database."""
-        clip = self[index]
-        frames = []
-
-        self.env.seed(clip.seed)
-        self.env.reset()
-        frames.append(self.env.render(mode='rgb_array'))
-
-        for action in clip.actions:
-            self.env.step(action)
-            frames.append(self.env.render(mode='rgb_array'))
-        
-        return np.stack(frames)
     
     def reserve_capacity(self, new_capacity: int):
         """Re-map the buffer to a new capacity."""        
