@@ -13,7 +13,7 @@ class DatabaseEvalHandle:
     
     Database directories are expected to contain:
         - `clips/`, a directory containing pickled clips. Clip filenames should be
-            of the format `clip_<timestamp>.pkl`, where `timestamp` is a
+            of the format `<timestamp>.pkl`, where `timestamp` is a
             Unix timestamp and `actor_id` is the unique ID of the actor process that
             generated the clip.
         - `prefs/`, a directory containing pickled `PrefGraph` objects, one for each
@@ -30,19 +30,21 @@ class DatabaseEvalHandle:
             assert isinstance(self.renderer, Renderer)
         
         clip_dir = self.path / 'clips'
-        self.clip_paths = sorted(clip_dir.glob('clip_*.pkl'))
+        self.clip_paths = {
+            path.stem: path
+            for path in clip_dir.glob('*.pkl')
+        }
     
-    def __getitem__(self, idx: int):
-        path = self.clip_paths[idx]
+    def __getitem__(self, clip_id: str):
+        path = self.clip_paths[clip_id]
         with open(path, 'rb') as f:
             return pickle.load(f)
     
-    def get_thumbnail(self, idx: int) -> np.ndarray:
-        clip = self[idx]
+    def thumbnail(self, clip_id: str) -> np.ndarray:
+        clip = self[clip_id]
         assert isinstance(clip, Sized)
 
         return self.renderer.thumbnail(clip, frame=len(clip) // 2)
     
-    def get_viewer_html(self, idx: int) -> str:
-        clip = self[idx]
-        return self.renderer.viewer_html(clip)
+    def viewer_html(self, clip_id: str) -> str:
+        return self.renderer.viewer_html(self[clip_id])

@@ -1,11 +1,13 @@
-from typing import Any
+from typing import Any, Generic, Hashable, TypeVar
 import networkx as nx
 
 
-class PrefGraph:
+NodeType = TypeVar('NodeType', bound=Hashable)
+
+class PrefGraph(Generic[NodeType]):
     """`PrefGraph` represents a partial preference ordering over clips as a graph with two types of edges:
     weighted directed edges that represent strict preferences, and undirected edges that represent indifferences.
-    Clips are represented by integer IDs.
+    Clips are represented by hashable IDs.
 
     Importantly, unlike the strict preference
     relation, the indifference relation is *not* required to be transitive. This is because indifference
@@ -26,11 +28,11 @@ class PrefGraph:
         self.indifferences = nx.Graph()
         self.strict_prefs = nx.DiGraph()
     
-    def __contains__(self, pair: tuple[int, int]) -> bool:
+    def __contains__(self, pair: tuple[NodeType, NodeType]) -> bool:
         """Return whether there is an edge from `a` to `b`."""
         return pair in self.strict_prefs or pair in self.indifferences
     
-    def __getitem__(self, edge: tuple[int, int]) -> Any:
+    def __getitem__(self, edge: tuple[NodeType, NodeType]) -> Any:
         """Return the attributes of the edge from `a` to `b`."""
         return self.indifferences[edge] if edge in self.indifferences else self.strict_prefs[edge]
     
@@ -38,7 +40,7 @@ class PrefGraph:
         num_indiff = self.indifferences.number_of_edges()
         return f'PrefGraph({num_indiff} indifferences, {len(self.strict_prefs)} strict preferences)'
     
-    def add_pref(self, a: int, b: int, weight: float = 1.0, **attr):
+    def add_pref(self, a: NodeType, b: NodeType, weight: float = 1.0, **attr):
         """Add the preference `a > b`, with optional keyword attributes."""
         assert a != b, "Strict preference relations are irreflexive"
 
@@ -67,7 +69,7 @@ class PrefGraph:
                 ex.cycle = cycle
                 raise ex
     
-    def add_indifference(self, a: int, b: int, **attr):
+    def add_indifference(self, a: NodeType, b: NodeType, **attr):
         """Add the indifference relation `a ~ b`."""
         self.indifferences.add_edge(a, b, **attr)
         self.strict_prefs.add_node(a)
@@ -82,7 +84,7 @@ class PrefGraph:
         nx.draw_networkx_edges(self.indifferences, pos, arrowstyle='-', style='dashed')
         nx.draw_networkx_labels(self.strict_prefs, pos)
     
-    def cycles(self) -> list[list[int]]:
+    def cycles(self) -> list[list[NodeType]]:
         """Return a list of cycles in the graph."""
         return list(nx.simple_cycles(self.strict_prefs))
     
@@ -91,7 +93,7 @@ class PrefGraph:
         they are acyclic."""
         return nx.is_directed_acyclic_graph(self.strict_prefs)
     
-    def median(self) -> int:
+    def median(self) -> NodeType:
         """Return the node at index n // 2 of a topological ordering of the strict preference relation."""
         middle_idx = len(self.strict_prefs) // 2
 
@@ -101,7 +103,7 @@ class PrefGraph:
         
         raise RuntimeError("Could not find median")
     
-    def unlink(self, a: int, b: int):
+    def unlink(self, a: NodeType, b: NodeType):
         """Remove the preference relation between `a` and `b`."""
         if (a, b) in self.indifferences:
             self.indifferences.remove_edge(a, b)

@@ -1,47 +1,110 @@
 <script lang="ts">
-    export let clipA = 0;
-    export let clipB = 1;
+    import { Jumper } from 'svelte-loading-spinners';
+    import WebSocketAsPromised from 'websocket-as-promised';
 
-    let socket = new WebSocket(`ws://${location.host}/feedback`);
-    socket.addEventListener('open', function (event) {
-        socket.send('Hello Server!');
+    const socket = new WebSocketAsPromised(`ws://${location.host}/feedback`, {
+        packMessage: data => JSON.stringify(data),
+        unpackMessage: data => JSON.parse(data as string),
     });
 
-    function indifferent() {
-        clipA = Math.floor(Math.random() * 3000);
-        clipB = Math.floor(Math.random() * 3000);
+    type Pref = '>' | '<' | '=';
+    const key2pref: Record<string, Pref> = {
+        // WASD layout
+        'a': '>',
+        's': '=',
+        'd': '<',
+
+        // Arrow keys
+        'ArrowLeft': '>',
+        'ArrowRight': '<',
+        'ArrowUp': '=',
+    };
+
+    // We support WASD & arrow keybindings for indicating preferences. In order to make
+    // sure the user is aware of which clip they're selecting, we show the corresponding
+    // mathematical symbol (>, <, or =) in between the two clips, and make the preferred
+    // clip momentarily larger than the unfavored one. To make sure that the animations
+    // don't slow down more experienced users, we tie the duration of this visual feedback
+    // to the length of time that the key is pressed down.
+    // This creates an annoying problem, though- what if the user presses down on another
+    // key before releasing the first one? Which preference should get committed to the
+    // database? I've decided that the LAST key released should win, since this allows
+    // users to 'undo' their initial keypress once they see the visual feedback by simply
+    // pressing down on a different key. We store the currently pressed keybindings in a
+    // stack to implement this behavior.
+    let prefStack: Pref[] = [];
+    $: highlight = prefStack.at(-1) ?? null;   // Automagically synced w/ the last item in stack
+
+    function handleKeyDown(e: KeyboardEvent) {
+        if (e.repeat) return;
+
+        // Escape 'unstages' the currently selected preference and resets the stack
+        if (e.key === 'Escape') {
+            prefStack = [];
+            return;
+        }
+
+        const pref = key2pref[e.key];
+        if (!pref) return;
+
+        prefStack = [...prefStack, pref];
+    }
+    function handleKeyUp(e: KeyboardEvent) {
+        const pref = key2pref[e.key];
+        if (prefStack.includes(pref)) releasePref(pref);
+    }
+    function releasePref(pref: Pref) {
+        prefStack = prefStack.filter(p => p !== pref);
+        if (!prefStack.length) {
+            console.log(`Committing ${pref}`);
+            socket.send(pref);
+        }
     }
 </script>
 
+<svelte:window on:keydown={handleKeyDown} on:keyup={handleKeyUp} />
+
 <div id="container">
-    <div>
-        <div class="clips">
-            <div>
-                <h2>Clip A</h2>
-                <iframe title="Clip A" src={`/viewer_html/${clipA}`}/>
+    {#await socket.open().then(() => socket.waitUnpackedMessage(msg => 'clipA' in msg))}
+        <Jumper />
+    {:then msg}
+        <div>
+            <div class="clips">
+                <div class:magnified={highlight === '>'} class:minified={highlight && highlight !== '>'} id="gt">
+                    <h2>Clip A</h2>
+                    <iframe title="Clip A" src={`/viewer_html/${msg.clipA}`}/>
+                </div>
+                <div id="symbol">{highlight ?? ' '}</div>
+                <div class:magnified={highlight === '<'} class:minified={highlight && highlight !== '<'} id="lt">
+                    <h2>Clip B</h2>
+                    <iframe title="Clip B" src={`/viewer_html/${msg.clipB}`}/>
+                </div>
             </div>
-            <div>
-                <h2>Clip B</h2>
-                <iframe title="Clip B" src={`/viewer_html/${clipB}`}/>
+            <div class="buttons">
+                <button
+                    on:mousedown={() => prefStack = [...prefStack, '>']}
+                    on:mouseup={() => releasePref('>')}
+                    on:mouseleave={() => prefStack = []}>
+                    Clip A is better
+                </button>
+                <button
+                    on:mousedown={() => prefStack = [...prefStack, '=']}
+                    on:mouseup={() => releasePref('=')}
+                    on:mouseleave={() => prefStack = []}>
+                    Too close to tell
+                </button>
+                <button
+                    on:mousedown={() => prefStack = [...prefStack, '<']}
+                    on:mouseup={() => releasePref('<')}
+                    on:mouseleave={() => prefStack = []}>
+                    Clip B is better
+                </button>
             </div>
         </div>
-        <div class="buttons">
-            <button on:click={() => clipA = Math.floor(Math.random() * 3000)}>
-                Clip A is better
-            </button>
-            <button on:click={() => socket.send("Indifferent")}>
-                Too close to tell
-            </button>
-            <button on:click={() => clipB = Math.floor(Math.random() * 3000)}>
-                Clip B is better
-            </button>
-        </div>
-        <div class="buttons">
-            <button>
-                Skip
-            </button>
-        </div>
-    </div>
+    {:catch error}
+        <!-- TODO: Make the error page look nicer -->
+        <h1>Error: {error.message}</h1>
+    {/await}
 </div>
 
 <style>
@@ -52,14 +115,37 @@
         height: 100%;
         width: 100%;
     }
-    .clips {
-        display: flex;
-        flex-direction: row;
+    #symbol {
+        align-self: center;
+        color: var(--font-color);
+        font-size: 3em;
+        font-weight: bold;
+        margin: 0.5rem;
+        text-align: center;
+        width: 2rem;
     }
     .buttons {
         display: flex;
         justify-content: space-around;
         width: 100%;
+    }
+    .clips {
+        display: flex;
+        flex-direction: row;
+    }
+    .magnified {
+        transition: 0.2s;
+    }
+    #gt.magnified {
+        transform: scale(1.1) translateX(-5%);
+    }
+    #lt.magnified {
+        transform: scale(1.1) translateX(5%);
+    }
+    .minified {
+        opacity: 0.9;
+        transform: scale(0.9);
+        transition: 0.2s;
     }
     button {
         margin: 1rem;

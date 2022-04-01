@@ -1,5 +1,6 @@
 from .database_eval_handle import DatabaseEvalHandle
 from .pref_graph import PrefGraph
+from .renderer import Renderer
 
 from argparse import ArgumentParser
 from functools import lru_cache
@@ -18,11 +19,6 @@ app.static('/', ROOT_DIR / 'client/public')
 app.static('/', ROOT_DIR / "client/public/index.html")
 
 
-prefs = PrefGraph(allow_cycles=True)
-for i, j in zip(range(10), range(1, 11)):
-    prefs.add_pref(i, j)
-
-
 @lru_cache()
 def database_handle(root_dir: Path) -> DatabaseEvalHandle:
     return DatabaseEvalHandle(root_dir)
@@ -39,30 +35,42 @@ def filter_ips(request: Request):
 @app.websocket('/feedback')
 async def feedback_socket(request, ws):
     """Receive feedback from the client and send it to the database."""
-    while True:
+    import json
+    import random
+
+    handle = DatabaseEvalHandle(request.app.config['database'])
+    clip_ids = list(handle.clip_paths)
+    random.shuffle(clip_ids)
+
+    while clip_ids:
+        await ws.send(
+            json.dumps({
+                "clipA": clip_ids.pop(),
+                "clipB": clip_ids.pop()
+            })
+        )
         comparison = await ws.recv()
-        # comparison = json.loads(comparison)
         print(comparison)
 
 
 @app.route("/graph")
 async def graph(request):
     """Serve the preference graph in Cytoscape.js format."""
-    return json(prefs.to_cytoscape())
+    return json(PrefGraph(allow_cycles=True).to_cytoscape())
 
 
-@app.route("/thumbnail/<node:int>")
-async def thumbnail(request, node: int):
+@app.route("/thumbnail/<node>")
+async def thumbnail(request, node: str):
     """Serve the thumbnail image."""
-    pixels = database_handle(app.config['database']).get_thumbnail(int(node))
+    pixels = database_handle(app.config['database']).thumbnail(node)
     _, img = cv2.imencode('.png', pixels[:, :, ::-1])
     return raw(img.data, content_type='image/png')
 
 
-@app.route("/viewer_html/<node:int>")
-async def viewer_html(request, node: int):
+@app.route("/viewer_html/<node>")
+async def viewer_html(request, node: str):
     """Serve the viewer HTML."""
-    markup = database_handle(app.config['database']).get_viewer_html(int(node))
+    markup = database_handle(app.config['database']).viewer_html(node)
     return html(markup)
 
 

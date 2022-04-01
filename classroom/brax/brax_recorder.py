@@ -80,7 +80,7 @@ class BraxRecorder(Wrapper):
                 if len(s_buf) >= self._min_clip_length:
                     # Transpose our list of QPs into a QP where each field has a timestep dimension.
                     # This saves space in the queue and on disk.
-                    clip_name = f"clip_{time.monotonic_ns()}.pkl"
+                    clip_name = f"{time.monotonic_ns()}.pkl"
                     with open(self._clip_dir / clip_name, 'wb') as f:
                         pickle.dump(BraxClip(tree_stack(s_buf), np.stack(a_buf)), f)
                 
