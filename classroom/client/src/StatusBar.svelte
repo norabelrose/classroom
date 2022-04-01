@@ -1,10 +1,10 @@
 <script lang="ts">
-    import { availableRuns, selectedRun } from './stores';
+    import { selectedRun } from './stores';
 </script>
 
 <footer class="bar">
     <div class="bar-item">
-        {$availableRuns.length} available runs
+        Hi there
     </div>
 </footer>
 

@@ -1,7 +1,7 @@
 from abc import ABC
 from numpy.typing import ArrayLike, DTypeLike
 from pathlib import Path
-from typing import Any, Callable, Literal, Union
+from typing import Any, Callable, Literal
 import numpy as np
 import pickle
 
@@ -10,7 +10,7 @@ class _MmapHandle(ABC):
     """Abstract base class for `MmapReader` and `MmapWriter`"""
     _buffer: np.memmap
 
-    def __init__(self, path: Union[Path, str], mode: Literal['r', 'r+', 'w+']):
+    def __init__(self, path: Path | str, mode: Literal['r', 'r+', 'w+']):
         self.path = Path(path)
 
         # The first 16 bytes of the buffer are reserved for the capacity and write cursor
@@ -34,11 +34,11 @@ class _MmapHandle(ABC):
 
 class MmapReader(_MmapHandle):
     """Read handle for a memory-mapped file which grows automatically to fit new data."""
-    def __init__(self, path: Union[Path, str], dtype: DTypeLike):
+    def __init__(self, path: Path | str, dtype: DTypeLike):
         super().__init__(path, 'r')
         self._buffer = np.memmap(path, dtype=dtype, mode='r', offset=16, shape=(self.capacity,))
     
-    def __getitem__(self, item: Union[int, slice]) -> np.ndarray:
+    def __getitem__(self, item: int | slice) -> np.ndarray:
         """Retrieve an element from the file."""
         cur_length = len(self)  # __len__ is volatile, so only read it once
 
@@ -70,7 +70,7 @@ class MmapWriter(_MmapHandle):
     file is supported in order to guarantee consistency for the read side without locking."""
     def __init__(
             self,
-            path: Union[Path, str],
+            path: Path | str,
             capacity: int = 2 ** 20,
             dtype: DTypeLike = np.uint8,
             *,
@@ -116,7 +116,7 @@ class MmapWriter(_MmapHandle):
 class MmapQueueReader:
     """Read handle for a memory-mapped list of arbitrary Python objects which grows to fit new data.
     Writers can append new elements but cannot shrink the list or modify existing elements."""
-    def __init__(self, path: Union[Path, str], *, deserialize_fn: Callable[[bytes], Any] = pickle.loads):
+    def __init__(self, path: Path | str, *, deserialize_fn: Callable[[bytes], Any] = pickle.loads):
         self.deserialize_fn = deserialize_fn
         self.path = Path(path)
         
@@ -144,7 +144,7 @@ class MmapQueueWriter:
     """Write handle for a memory-mapped list of arbitrary Python objects which grows to fit new data."""
     def __init__(
             self,
-            path: Union[Path, str],
+            path: Path | str,
             capacity: int = 2 ** 20,
             *,
             serialize_fn: Callable[[Any], bytes] = pickle.dumps

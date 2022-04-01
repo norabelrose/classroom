@@ -1,24 +1,29 @@
 <script lang="ts">
+	import ComparisonView from './ComparisonView.svelte';
 	import GraphView from './graph/GraphView.svelte';
 	import Modal from './Modal.svelte';
 	import NavBar from './NavBar.svelte';
-	import RunList from './RunList.svelte';
 	import StatusBar from './StatusBar.svelte';
-	
+	import { selectedTab } from './stores';
+
 	let showingRunList = false;
 	let showingHelp = false;
 </script>
 
-<NavBar bind:showingHelp={showingHelp} bind:showingRuns={showingRunList}/>
+<NavBar bind:showingHelp={showingHelp}/>
 
-<GraphView/>
+{#if $selectedTab === 'compare'}
+	<ComparisonView />
+{:else}
+	<GraphView />
+{/if}
 
 <StatusBar/>
 
-<Modal bind:visible={showingRunList}>
+<!-- <Modal bind:visible={showingRunList}>
 	<h2 slot="header">Runs</h2>
 	<RunList slot="content"/>
-</Modal>
+</Modal> -->
 
 <Modal bind:visible={showingHelp}>
 	<h2 slot="header">Instructions</h2>

@@ -1,7 +1,18 @@
 """Copied from https://gist.github.com/willwhitney/dd89cac6a5b771ccff18b06b33372c75"""
 
-from brax import jumpy as jp
+from brax import jumpy as jp, QP
 from jax.tree_util import tree_flatten
+from typing import NamedTuple
+import numpy as np
+
+
+class BraxClip(NamedTuple):
+    states: QP
+    actions: np.ndarray
+
+    def __len__(self):
+        """Returns the number of timesteps in the clip."""
+        return len(self.actions)
 
 
 def tree_stack(trees: list):

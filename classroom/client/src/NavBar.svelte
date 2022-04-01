@@ -2,12 +2,11 @@
     import HamburgerButton from './HamburgerButton.svelte';
     import Popover from './Popover.svelte';
     import ViewSettings from './ViewSettings.svelte';
-    import { availableRuns, selectedRun } from './stores';
+    import { selectedTab } from './stores';
 
     export let showingHelp = false;
     export let showingSettings = false;
     export let showingSidebar = false;
-    export let showingRuns = false;
     
     // For the fullscreen button in the nav bar
 	function toggleFullscreen() {
@@ -19,9 +18,11 @@
 	}
 
     const KEYBINDINGS: Record<string, Function> = {
+        c: () => $selectedTab = 'compare',
+        v: () => $selectedTab = 'visualize',
+        
         f: toggleFullscreen,
         h: () => showingHelp = !showingHelp,
-        // r: () => showingRuns = !showingRuns,
     };
 
     function handleKeyDown(event: KeyboardEvent) {
@@ -42,11 +43,17 @@
 		<svg><use href="/buttons.svg#undo"/></svg>
 	</span>
 	<span class="spacer"></span>
-	<!-- Run Selector; disabled when there are no (other) available runs -->
-    <span class="run-selector"  class:control={$availableRuns.length > 1}
-                                on:click={() => showingRuns = $availableRuns.length > 1}>
-		{$selectedRun ?? "Classroom"}
-	</span>
+    <div class="tab-container">
+        <span class="control tab" class:tab-selected={$selectedTab === 'compare'} on:click={() => $selectedTab = 'compare'}
+            title="Compare clips of AI behavior side-by-side">
+            Compare
+        </span>
+        <span class="separator"/>
+        <span class="control tab" class:tab-selected={$selectedTab === 'visualize'} on:click={() => $selectedTab = 'visualize'}
+            title="Visualize all the preferences you've expressed as a graph">
+            Visualize
+        </span>
+    </div>
     <span class="spacer"></span>
 	<!-- Fullscreen Button -->
 	<span class="control nav-item" title="Fullscreen" on:click={toggleFullscreen}>
@@ -92,19 +99,26 @@
     .nav-item {
         display: block;
         font-size: 1.25rem;
-        font-weight: bold;
         margin: 1rem 0.5rem;
     }
-    .run-selector {
-        border: var(--nav-gray) solid 1px;
-        border-radius: 0.5rem;
-        color: var(--nav-gray);
-        font-size: 1rem;
-        padding: 0.5rem 1rem 0.5rem 1rem;
-        margin: 0.5rem;
-        user-select: none;
+    .separator {
+        border-left: 1px solid var(--nav-gray);
+        height: 1.5rem;
+        margin: 0 0.5rem 0 0.5rem;
     }
     .spacer {
         flex: 1;
+    }
+    .tab {
+        margin: 1rem 0.5rem;
+    }
+    .tab-container {
+        border: 1px solid var(--nav-gray);
+        border-radius: 0.5rem;
+        padding: 0.5rem 1rem 0.5rem 1rem;
+        margin: 0.5rem;
+    }
+    .tab-selected {
+        font-weight: bold;
     }
 </style>

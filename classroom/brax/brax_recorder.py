@@ -3,22 +3,24 @@ from brax.envs.env import Env, State, Wrapper
 from jax.experimental.host_callback import id_tap
 from jax.tree_util import tree_map
 from pathlib import Path
-from typing import Union, Optional
 from ..mmap import MmapQueueWriter
-from .tree_utils import tree_stack
+from .brax_renderer import BraxRenderer
+from .utils import BraxClip, tree_stack
 import jax.numpy as jnp
 import numpy as np
+import pickle
+import time
 
 
 class BraxRecorder(Wrapper):
     def __init__(
             self,
             env: Env,
-            db_path: Union[Path, str],
+            db_path: Path | str,
             clip_length: int = 120,
-            min_clip_length: Optional[int] = None,  # Defaults to clip_length // 2
+            min_clip_length: int | None = None,  # Defaults to clip_length // 2
 
-            clips_per_batch: Optional[int] = None,  # Defaults to next_power_of_2(env.batch_size // 100)
+            clips_per_batch: int | None = None,  # Defaults to next_power_of_2(env.batch_size // 100)
             flush_every: int = 100,
         ):
         super().__init__(env)
@@ -28,11 +30,17 @@ class BraxRecorder(Wrapper):
 
         self._clip_length = clip_length
         self._clips_per_batch = clips_per_batch or max(1, next_power_of_2(batch_size // 100))
-        self._db_path = db_path
+        self._db_path = Path(db_path)
         self._flush_every = flush_every
         self._min_clip_length = min_clip_length or clip_length // 2
-        self._cur_step = 0
-        self._writer = MmapQueueWriter(self._db_path)
+
+        self._clip_dir = self._db_path / 'clips'
+        self._clip_dir.mkdir(parents=True, exist_ok=True)
+        # self._writer = MmapQueueWriter(clip_dir)
+
+        # Save a renderer that can be used to render the clips later
+        with open(self._db_path / 'renderer.pkl', 'wb') as f:
+            pickle.dump(BraxRenderer(env.sys), f)
 
         self._host_reset()
     
@@ -72,14 +80,12 @@ class BraxRecorder(Wrapper):
                 if len(s_buf) >= self._min_clip_length:
                     # Transpose our list of QPs into a QP where each field has a timestep dimension.
                     # This saves space in the queue and on disk.
-                    self._writer.append((tree_stack(s_buf), np.stack(a_buf)))
+                    clip_name = f"clip_{time.monotonic_ns()}.pkl"
+                    with open(self._clip_dir / clip_name, 'wb') as f:
+                        pickle.dump(BraxClip(tree_stack(s_buf), np.stack(a_buf)), f)
                 
                 s_buf.clear()
                 a_buf.clear()
-        
-        self._cur_step += 1
-        if self._cur_step % self._flush_every == 0:
-            self._writer.flush()
 
 
 def get_env_batch_size(env: Env) -> int:

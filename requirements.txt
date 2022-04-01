@@ -1,4 +1,4 @@
 gym
 networkx
+sanic
 watchdog
-werkzeug

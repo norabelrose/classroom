@@ -12,7 +12,7 @@ export const graphStyles: Stylesheet[] = [
         style: {
             'background-color': '#1f78b4',  // Light blue; same color as NetworkX plots
             'background-fit': 'contain',
-            'background-image': elem => `/thumbnail?node=${elem.data('id')}`,
+            'background-image': elem => `/thumbnail/${elem.data('id')}`,
             'label': 'data(id)',
             'shape': 'round-rectangle',
             'height': '128px',

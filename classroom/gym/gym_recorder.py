@@ -1,10 +1,9 @@
-from .clip_manager import ClipManager
 import gym
 import numpy as np
 import time
 
 
-class GymWrapper(gym.Wrapper):
+class GymRecorder(gym.Wrapper):
     """Wrapper class for a Gym environment for gathering human feedback."""
     env: gym.Env
 

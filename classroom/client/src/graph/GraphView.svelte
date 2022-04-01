@@ -21,7 +21,7 @@
         });
         attachFloaterOnSelect(graph, (node) => {
             const floater = document.createElement('iframe');
-            floater.src = `/viewer_html?node=${node.id()}`;
+            floater.src = `/viewer_html/${node.id()}`;
             Object.assign(
                 floater.style,
                 { border: 'none', 'border-radius': '10px' }
