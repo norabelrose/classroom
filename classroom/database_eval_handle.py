@@ -30,6 +30,10 @@ class DatabaseEvalHandle:
             assert isinstance(self.renderer, Renderer)
         
         clip_dir = self.path / 'clips'
+        # Check to see if we saved an index for the clips
+        index_path = clip_dir / 'index.txt'
+        # if index_path.exists():
+
         self.clip_paths = {
             path.stem: path
             for path in clip_dir.glob('*.pkl')

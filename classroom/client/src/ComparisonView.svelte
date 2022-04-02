@@ -1,11 +1,11 @@
 <script lang="ts">
+    import { globalSocket } from './rpc_socket';
     import { Jumper } from 'svelte-loading-spinners';
-    import WebSocketAsPromised from 'websocket-as-promised';
+    import { onMount } from 'svelte';
 
-    const socket = new WebSocketAsPromised(`ws://${location.host}/feedback`, {
-        packMessage: data => JSON.stringify(data),
-        unpackMessage: data => JSON.parse(data as string),
-    });
+    let clipA: string;
+    let clipB: string;
+    onMount(async () => ({ clipA, clipB } = await globalSocket.call('clips')));
 
     type Pref = '>' | '<' | '=';
     const key2pref: Record<string, Pref> = {
@@ -55,9 +55,13 @@
     }
     function releasePref(pref: Pref) {
         prefStack = prefStack.filter(p => p !== pref);
+
+        // Actually commit the preference to the server
         if (!prefStack.length) {
             console.log(`Committing ${pref}`);
-            socket.send(pref);
+
+            const [better, worse] = pref === '>' ? [clipA, clipB] : [clipB, clipA];
+            globalSocket.call('commit', { better, worse }).then((msg) => ({ clipA, clipB } = msg));
         }
     }
 </script>
@@ -65,19 +69,19 @@
 <svelte:window on:keydown={handleKeyDown} on:keyup={handleKeyUp} />
 
 <div id="container">
-    {#await socket.open().then(() => socket.waitUnpackedMessage(msg => 'clipA' in msg))}
+    {#if !clipA || !clipB}
         <Jumper />
-    {:then msg}
+    {:else}
         <div>
             <div class="clips">
                 <div class:magnified={highlight === '>'} class:minified={highlight && highlight !== '>'} id="gt">
                     <h2>Clip A</h2>
-                    <iframe title="Clip A" src={`/viewer_html/${msg.clipA}`}/>
+                    <iframe title="Clip A" src={`/viewer_html/${clipA}`}/>
                 </div>
                 <div id="symbol">{highlight ?? ' '}</div>
                 <div class:magnified={highlight === '<'} class:minified={highlight && highlight !== '<'} id="lt">
                     <h2>Clip B</h2>
-                    <iframe title="Clip B" src={`/viewer_html/${msg.clipB}`}/>
+                    <iframe title="Clip B" src={`/viewer_html/${clipB}`}/>
                 </div>
             </div>
             <div class="buttons">
@@ -101,10 +105,7 @@
                 </button>
             </div>
         </div>
-    {:catch error}
-        <!-- TODO: Make the error page look nicer -->
-        <h1>Error: {error.message}</h1>
-    {/await}
+    {/if}
 </div>
 
 <style>

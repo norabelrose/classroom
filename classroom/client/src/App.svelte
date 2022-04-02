@@ -6,24 +6,20 @@
 	import StatusBar from './StatusBar.svelte';
 	import { selectedTab } from './stores';
 
-	let showingRunList = false;
 	let showingHelp = false;
 </script>
 
-<NavBar bind:showingHelp={showingHelp}/>
+<div id="content">
+	<NavBar bind:showingHelp={showingHelp}/>
 
-{#if $selectedTab === 'compare'}
-	<ComparisonView />
-{:else}
-	<GraphView />
-{/if}
+	{#if $selectedTab === 'compare'}
+		<ComparisonView />
+	{:else}
+		<GraphView />
+	{/if}
 
-<StatusBar/>
-
-<!-- <Modal bind:visible={showingRunList}>
-	<h2 slot="header">Runs</h2>
-	<RunList slot="content"/>
-</Modal> -->
+	<StatusBar/>
+</div>
 
 <Modal bind:visible={showingHelp}>
 	<h2 slot="header">Instructions</h2>
@@ -33,3 +29,13 @@
 		<li>Press the appropriate button.</li>
 	</ul>
 </Modal>
+
+
+<style>
+	#content {
+		display: flex;
+		flex-direction: column;
+		height: 100%;
+		width: 100%;
+	}
+</style>

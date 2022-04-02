@@ -34,29 +34,44 @@ def filter_ips(request: Request):
 
 @app.websocket('/feedback')
 async def feedback_socket(request, ws):
-    """Receive feedback from the client and send it to the database."""
+    """Opens a WebSocket-based Remote Procedure Call connection with the client."""
     import json
     import random
 
+    async def reply(msg_id: int, result):
+        """Boilerplate for sending a reply to the client."""
+        await ws.send(
+            json.dumps({
+                'id': msg_id,
+                'result': result
+            })
+        )
+
     handle = DatabaseEvalHandle(request.app.config['database'])
+    pref_graph = PrefGraph()
     clip_ids = list(handle.clip_paths)
     random.shuffle(clip_ids)
 
     while clip_ids:
-        await ws.send(
-            json.dumps({
-                "clipA": clip_ids.pop(),
-                "clipB": clip_ids.pop()
-            })
-        )
-        comparison = await ws.recv()
-        print(comparison)
+        call = json.loads(await ws.recv())
 
-
-@app.route("/graph")
-async def graph(request):
-    """Serve the preference graph in Cytoscape.js format."""
-    return json(PrefGraph(allow_cycles=True).to_cytoscape())
+        match call:
+            case {'method': 'clips', 'params': _, 'id': msg_id}:
+                await reply(msg_id, {
+                    "clipA": clip_ids.pop(),
+                    "clipB": clip_ids.pop()
+                })
+            case {'method': 'commit', 'params': {'better': better, 'worse': worse}, 'id': msg_id}:
+                pref_graph.add_pref(better, worse)
+                await reply(msg_id, {
+                    "clipA": clip_ids.pop(),
+                    "clipB": clip_ids.pop()
+                })
+            case {'method': 'getGraph', 'params': _, 'id': msg_id}:
+                """Serve the preference graph in Cytoscape.js format."""
+                await reply(msg_id, pref_graph.to_cytoscape())
+            case _:
+                warnings.warn(f"Malformed RPC message: {call}")
 
 
 @app.route("/thumbnail/<node>")
