@@ -45,7 +45,7 @@ export function attachFloaterOnSelect(graph: Core, elemCreator: FloaterCreator):
     graph.on('select', 'node', (event) => {
         const floater = elemCreator(event.target);
         setTimeout(() => {
-            detach = attachFloaterToNode(graph, floater, event.target, {x: 0, y: 3});
+            detach = attachFloaterToNode(graph, floater, event.target);
         }, 200);
     });
     graph.on('unselect', 'node', _ => {

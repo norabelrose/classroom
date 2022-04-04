@@ -33,7 +33,9 @@
     // pressing down on a different key. We store the currently pressed keybindings in a
     // stack to implement this behavior.
     let prefStack: Pref[] = [];
-    $: highlight = prefStack.at(-1) ?? null;   // Automagically synced w/ the last item in stack
+    // Automagically synced w/ the last item in stack. Would be nice to use .at() here
+    // but it's not supported by iOS WebKit until iOS 15.4
+    $: highlight = prefStack[prefStack.length - 1] ?? null;
 
     function handleKeyDown(e: KeyboardEvent) {
         if (e.repeat) return;
@@ -60,8 +62,11 @@
         if (!prefStack.length) {
             console.log(`Committing ${pref}`);
 
-            const [better, worse] = pref === '>' ? [clipA, clipB] : [clipB, clipA];
-            globalSocket.call('commit', { better, worse }).then((msg) => ({ clipA, clipB } = msg));
+            globalSocket.call('addPref', {
+                nodes: pref === '>' ? [clipA, clipB] : [clipB, clipA],
+                strict: pref !== '='
+            })
+            .then((msg) => ({ clipA, clipB } = msg));
         }
     }
 </script>

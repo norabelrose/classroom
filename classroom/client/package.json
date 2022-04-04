@@ -26,9 +26,13 @@
     "typescript": "^4.6.3"
   },
   "dependencies": {
-    "@floating-ui/dom": "^0.4.2",
+    "@rollup/plugin-replace": "^4.0.0",
+    "@types/cytoscape-dagre": "^2.3.0",
     "cytoscape": "^3.21.0",
+    "cytoscape-dagre": "^2.4.0",
+    "reconnecting-websocket": "^4.4.0",
     "sirv-cli": "^2.0.0",
-    "svelte-loading-spinners": "^0.1.7"
+    "svelte-loading-spinners": "^0.1.7",
+    "tippy.js": "^6.3.7"
   }
 }

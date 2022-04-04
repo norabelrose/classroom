@@ -1,11 +1,12 @@
-import svelte from 'rollup-plugin-svelte';
 import commonjs from '@rollup/plugin-commonjs';
-import resolve from '@rollup/plugin-node-resolve';
+import css from 'rollup-plugin-css-only';
 import livereload from 'rollup-plugin-livereload';
-import { terser } from 'rollup-plugin-terser';
+import replace from '@rollup/plugin-replace';
+import resolve from '@rollup/plugin-node-resolve';
+import svelte from 'rollup-plugin-svelte';
 import sveltePreprocess from 'svelte-preprocess';
 import typescript from '@rollup/plugin-typescript';
-import css from 'rollup-plugin-css-only';
+import { terser } from 'rollup-plugin-terser';
 
 const production = !process.env.ROLLUP_WATCH;
 
@@ -50,6 +51,12 @@ export default {
 		// a separate file - better for performance
 		css({ output: 'bundle.css' }),
 
+		// Needed to make tippy.js work; see
+		// https://atomiks.github.io/tippyjs/v6/faq/#im-getting-uncaught-referenceerror-process-is-not-defined
+		replace({
+			'process.env.NODE_ENV': JSON.stringify(production ? 'production' : 'development'),
+		}),
+
 		// If you have external dependencies installed from
 		// npm, you'll most likely need these plugins. In
 		// some cases you'll need additional configuration -
@@ -58,8 +65,6 @@ export default {
 		resolve({
 			browser: true,
 			dedupe: ['svelte'],
-			// Needed for floating-ui to work; see https://github.com/floating-ui/floating-ui/issues/1575
-			exportConditions: [production ? 'production' : 'development']
 		}),
 		commonjs(),
 		typescript({

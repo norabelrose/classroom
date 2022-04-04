@@ -12,8 +12,8 @@ export const graphStyles: Stylesheet[] = [
         style: {
             'background-color': '#1f78b4',  // Light blue; same color as NetworkX plots
             'background-fit': 'contain',
-            'background-image': elem => `/thumbnail/${elem.data('id')}`,
-            'label': 'data(id)',
+            'background-image': elem => `/thumbnail/${elem.data('id')}/60`,
+            'label': 'data(name)',
             'shape': 'round-rectangle',
             'height': '128px',
             'width': '128px',
@@ -50,6 +50,7 @@ export const graphStyles: Stylesheet[] = [
     {
         selector: 'edge[strict]',
         style: {
+            'arrow-scale': 2,
             'line-style': 'solid',
             'target-arrow-color': contrastColor,
             'target-arrow-shape': 'triangle',

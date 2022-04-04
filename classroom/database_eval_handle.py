@@ -44,11 +44,12 @@ class DatabaseEvalHandle:
         with open(path, 'rb') as f:
             return pickle.load(f)
     
-    def thumbnail(self, clip_id: str) -> np.ndarray:
+    def thumbnail(self, clip_id: str, frame: int | None = None) -> np.ndarray:
         clip = self[clip_id]
         assert isinstance(clip, Sized)
 
-        return self.renderer.thumbnail(clip, frame=len(clip) // 2)
+        frame = frame if frame is not None else len(clip) // 2
+        return self.renderer.thumbnail(clip, frame=frame)
     
     def viewer_html(self, clip_id: str) -> str:
         return self.renderer.viewer_html(self[clip_id])

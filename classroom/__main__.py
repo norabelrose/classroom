@@ -3,12 +3,13 @@ from .pref_graph import PrefGraph
 from .renderer import Renderer
 
 from argparse import ArgumentParser
-from functools import lru_cache
+from datetime import datetime
 from pathlib import Path
 from sanic import Request, Sanic
 from sanic.exceptions import Unauthorized
-from sanic.response import html, json, raw
+from sanic.response import html, raw
 import cv2
+import networkx as nx
 import warnings
 
 ROOT_DIR = Path(__file__).parent
@@ -19,9 +20,11 @@ app.static('/', ROOT_DIR / 'client/public')
 app.static('/', ROOT_DIR / "client/public/index.html")
 
 
-@lru_cache()
-def database_handle(root_dir: Path) -> DatabaseEvalHandle:
-    return DatabaseEvalHandle(root_dir)
+@app.on_request
+def maybe_open_handle(request: Request):
+    ctx = request.app.ctx
+    if not hasattr(ctx, 'handle'):
+        ctx.handle = DatabaseEvalHandle(request.app.config['database'])
 
 
 @app.on_request
@@ -38,46 +41,82 @@ async def feedback_socket(request, ws):
     import json
     import random
 
-    async def reply(msg_id: int, result):
-        """Boilerplate for sending a reply to the client."""
-        await ws.send(
-            json.dumps({
-                'id': msg_id,
-                'result': result
-            })
-        )
-
-    handle = DatabaseEvalHandle(request.app.config['database'])
-    pref_graph = PrefGraph()
+    handle: DatabaseEvalHandle = request.app.ctx.handle
     clip_ids = list(handle.clip_paths)
     random.shuffle(clip_ids)
 
-    while clip_ids:
-        call = json.loads(await ws.recv())
+    with PrefGraph.open(request.app.config['database'] / 'prefs.pkl') as pref_graph:
+        while clip_ids:
+            call = json.loads(await ws.recv())
 
-        match call:
-            case {'method': 'clips', 'params': _, 'id': msg_id}:
-                await reply(msg_id, {
-                    "clipA": clip_ids.pop(),
-                    "clipB": clip_ids.pop()
-                })
-            case {'method': 'commit', 'params': {'better': better, 'worse': worse}, 'id': msg_id}:
-                pref_graph.add_pref(better, worse)
-                await reply(msg_id, {
-                    "clipA": clip_ids.pop(),
-                    "clipB": clip_ids.pop()
-                })
-            case {'method': 'getGraph', 'params': _, 'id': msg_id}:
-                """Serve the preference graph in Cytoscape.js format."""
-                await reply(msg_id, pref_graph.to_cytoscape())
-            case _:
-                warnings.warn(f"Malformed RPC message: {call}")
+            async def reply(result):
+                """Boilerplate for sending a reply to the client."""
+                await ws.send(json.dumps({'id': call.get('id'), 'result': result}))
+
+            match call.get('method'), call.get('params'):
+                # Add a strict preference to the graph, returning the next pair of clips to compare.
+                case 'addPref', {'nodes': [str(clipA), str(clipB)], 'strict': bool(strict)}:
+                    if strict:
+                        pref_graph.add_pref(clipA, clipB)
+                    else:
+                        pref_graph.add_indifference(clipA, clipB)
+
+                    await reply({
+                        'clipA': pref_graph.median(),
+                        'clipB': clip_ids.pop()
+                    })
+                
+                # Return the first pair of clips to compare.
+                case 'clips', None:
+                    await reply({ 'clipA': clip_ids.pop(), 'clipB': clip_ids.pop() })
+                
+                # Serve the preference graph in Cytoscape.js format.
+                case 'getGraph', None:
+                    await reply({
+                        'nodes': [
+                            {'data': {'id': str(node), 'value': node, 'name': node_id_to_human_timestamp(node)}}
+                            for node in pref_graph.strict_prefs.nodes
+                        ],
+                        'strictPrefs': [
+                            {'data': {'source': a, 'target': b, 'strict': True}}
+                            for (a, b) in pref_graph.strict_prefs.edges
+                        ],
+                        'indifferences': [
+                            {'data': {'source': a, 'target': b, 'indiff': True}}
+                            for (a, b) in pref_graph.indifferences.edges
+                        ],
+                        'connectedNodes': pref_graph.strict_prefs.number_of_nodes(),
+                        'totalNodes': len(clip_ids),
+
+                        'longestPath': nx.dag_longest_path_length(pref_graph.strict_prefs),
+                        'numPrefs': pref_graph.strict_prefs.number_of_edges(),
+                        'numIndifferences': pref_graph.indifferences.number_of_edges(),
+                    })
+                
+                # Compute a planar layout for the graph
+                case 'getPlanarLayout', None:
+                    await reply({
+                        node: dict(x=x, y=y)
+                        for node, (x, y) in nx.planar_layout(pref_graph.strict_prefs).items()
+                    })
+                case _:
+                    warnings.warn(f"Malformed RPC message: {call}")
+                    await ws.send(json.dumps({'id': call.get('id'), 'error': 'Malformed RPC message.'}))
 
 
-@app.route("/thumbnail/<node>")
-async def thumbnail(request, node: str):
+def node_id_to_human_timestamp(node_id: str) -> str:
+    try:
+        timestamp = int(node_id)
+    except ValueError:
+        return node_id
+    
+    return datetime.fromtimestamp(timestamp // 1_000_000_000).strftime('%b-%d %H:%M:%S')
+
+
+@app.route("/thumbnail/<node>/<frame:int>")
+async def thumbnail(request, node: str, frame: int = 60):
     """Serve the thumbnail image."""
-    pixels = database_handle(app.config['database']).thumbnail(node)
+    pixels = request.app.ctx.handle.thumbnail(node, frame)
     _, img = cv2.imencode('.png', pixels[:, :, ::-1])
     return raw(img.data, content_type='image/png')
 
@@ -85,7 +124,7 @@ async def thumbnail(request, node: str):
 @app.route("/viewer_html/<node>")
 async def viewer_html(request, node: str):
     """Serve the viewer HTML."""
-    markup = database_handle(app.config['database']).viewer_html(node)
+    markup = request.app.ctx.handle.viewer_html(node)
     return html(markup)
 
 
@@ -93,6 +132,7 @@ if __name__ == '__main__':
     parser = ArgumentParser(description="Run the Classroom GUI server.")
     parser.add_argument('--allowed-ips', nargs='*', type=str, help="List of allowed remote IPs.")
     parser.add_argument('--database', type=Path, help="Path to the database directory.")
+    parser.add_argument('--debug', action='store_true', help="Enable debug mode.")
     parser.add_argument('--usernames', nargs='*', type=str, default=(), help="Usernames for which to generate tokens.")
     parser.add_argument('--port', type=int, default=8000, help="Port to run the server on.")
     args = parser.parse_args()
@@ -102,6 +142,8 @@ if __name__ == '__main__':
 
     app.config.update(**vars(args))
     app.run(
+        auto_reload=args.debug,
+        debug=args.debug,
         host='localhost' if not args.allowed_ips else '0.0.0.0',
         port=args.port,
         fast=True   # Use all available cores when needed
