@@ -1,24 +1,18 @@
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Generator
+from typing import TYPE_CHECKING, Generator
 import networkx as nx
 import pickle
+from .fas import eades_fas
+if TYPE_CHECKING:   # Prevent circular import
+    from .pref_dag import PrefDAG
 
 
 class PrefGraph(nx.DiGraph):
-    """`PrefGraph` represents a partial weak preference ordering over clips as a weighted directed graph.
+    """`PrefGraph` represents a possibly cyclic set of preferences over clips as a weighted directed graph.
     Edge weights represent the strength of the preference of A over B, and indifferences are represented
-    as edges with zero weight. Clips are represented with string IDs.
-
-    By default, `PrefGraph` enforces certain coherence properties expected of preference orderings:
-    - Quasi-transitivity: Strict preferences must be transitive, and therefore the subgraph representing
-    them must be acyclic. Violating this property will result in a `TransitivityViolation` exception, which
-    has a `cycle` attribute that can be used to display the offending cycle to the user. We do not assume
-    indifferences are transitive due to the Sorites paradox.
-    See <https://en.wikipedia.org/wiki/Sorites_paradox#Resolutions_in_utility_theory> for discussion.
-    - Non-negativity: Edge weights must be non-negative.
-
-    If you need to bypass these checks, you can use `add_edge_unsafe` to do so.
+    as edges with zero weights. Clips are represented as string IDs. If you want to prevent cycles from
+    being added to the graph in an online fashion, you should probably use `PrefDAG` instead.
     """
     @classmethod
     @contextmanager
@@ -55,7 +49,7 @@ class PrefGraph(nx.DiGraph):
     
     def __repr__(self) -> str:
         num_indiff = self.indifferences.number_of_edges()
-        return f'PrefGraph({num_indiff} indifferences, {len(self.strict_prefs)} strict preferences)'
+        return f'{type(self).__name__}({len(self.strict_prefs)} strict prefs, {num_indiff} indifferences)'
     
     def add_edge(self, a: str, b: str, weight: float = 1.0, **attr):
         """Add an edge to the graph, and check for coherence violations. Usually you
@@ -63,24 +57,6 @@ class PrefGraph(nx.DiGraph):
         if weight < 0:
             raise CoherenceViolation("Preferences must have non-negative weight")
         
-        self.add_edge_unsafe(a, b, **attr)
-        if weight > 0:
-            # This is a strict preference, so we should check for cycles
-            try:
-                cycle = nx.find_cycle(self.strict_prefs, source=a)
-            except nx.NetworkXNoCycle:
-                pass
-            else:
-                # Remove the edge we just added.
-                self.remove_edge(a, b)
-
-                ex = TransitivityViolation(f"Adding {a} > {b} would create a cycle: {cycle}")
-                ex.cycle = cycle
-                raise ex
-    
-    def add_edge_unsafe(self, a: str, b: str, weight: float = 1.0, **attr):
-        """Add a preference without checking for coherence violations. Should probably only be used in
-        cases where you explicitly want to model incoherent preferences."""
         super().add_edge(a, b, weight=weight, **attr)
     
     def add_greater(self, a: str, b: str, weight: float = 1.0, **attr):
@@ -100,21 +76,6 @@ class PrefGraph(nx.DiGraph):
 
         self.add_edge(a, b, **attr)
     
-    def searchsorted(self) -> Generator[str, bool, int]:
-        """Coroutine for asynchronously performing a binary search on the strict preference relation."""
-        ordering = list(nx.topological_sort(self.strict_prefs))
-        lo, hi = 0, len(ordering)
-
-        while lo < hi:
-            pivot = (lo + hi) // 2
-            greater = yield ordering[pivot]
-            if greater:
-                lo = pivot + 1
-            else:
-                hi = pivot
-        
-        return lo
-    
     def draw(self):
         """Displays a visualization of the graph using `matplotlib`. Strict preferences
         are shown as solid arrows, and indifferences are dashed lines."""
@@ -130,20 +91,18 @@ class PrefGraph(nx.DiGraph):
         """Yields sets of nodes that are equivalent under the indifference relation."""
         return nx.connected_components(self.indifferences)
     
-    def is_quasi_transitive(self) -> bool:
-        """Return whether the strict preferences are acyclic. This should return `True` unless
-        you've used a method like `add_greater_unsafe` to avoid coherence checks."""
-        return nx.is_directed_acyclic_graph(self.strict_prefs)
+    def find_acyclic_subgraph(self) -> PrefDAG:
+        """Return an acyclic subgraph of this graph as a `PrefDAG`. The algorithm will try
+        to remove as few preferences as possible, but it is not guaranteed to be optimal."""
+        fas = set(eades_fas(self.strict_prefs))
+        return PrefDAG((
+            (u, v, d) for u, v, d in self.edges(data=True)  # type: ignore
+            if (u, v) not in fas
+        ))
     
-    def median(self) -> str:
-        """Return the node at index n // 2 of a topological ordering of the strict preference relation."""
-        middle_idx = len(self.strict_prefs) // 2
-
-        for i, node in enumerate(nx.topological_sort(self.strict_prefs)):
-            if i == middle_idx:
-                return node
-        
-        raise RuntimeError("Could not find median")
+    def is_quasi_transitive(self) -> bool:
+        """Return whether the strict preferences are acyclic."""
+        return nx.is_directed_acyclic_graph(self.strict_prefs)
     
     def unlink(self, a: str, b: str):
         """Remove the preference relation between `a` and `b`."""
@@ -160,7 +119,3 @@ class PrefGraph(nx.DiGraph):
 class CoherenceViolation(Exception):
     """Raised when an operation would violate the coherence of the graph."""
     pass
-
-class TransitivityViolation(CoherenceViolation):
-    """Raised when a mutation of a `PrefGraph` would cause transitivity to be violated"""
-    cycle: list[int]

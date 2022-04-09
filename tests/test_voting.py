@@ -1,4 +1,4 @@
-from classroom import PrefGraph
+from classroom import PrefDAG
 from classroom.voting import ranked_pairs
 from hypothesis_networkx import graph_builder
 from hypothesis import given, strategies as st
@@ -7,10 +7,10 @@ import networkx as nx
 
 
 # Generate random DAGs by orienting undirected edges by the order of the node values
-dags = graph_builder().map(lambda g: PrefGraph(map(sorted, g.edges)))
+dags = graph_builder().map(lambda g: PrefDAG(map(sorted, g.edges)))
 
 @given(ballots=st.lists(dags, min_size=1))
-def test_ranked_pairs(ballots: list[PrefGraph]):
+def test_ranked_pairs(ballots: list[PrefDAG]):
     results = ranked_pairs(ballots)
 
     # Coherence
@@ -22,14 +22,14 @@ def test_ranked_pairs(ballots: list[PrefGraph]):
 # The example given in the ranked pairs Wikipedia article
 def test_ranked_pairs_example():
     ballots = (
-        [PrefGraph(pairwise('wxzy'))] * 7 +
-        [PrefGraph(pairwise('wyxz'))] * 2 +
-        [PrefGraph(pairwise('xyzw'))] * 4 +
-        [PrefGraph(pairwise('xzwy'))] * 5 +
-        [PrefGraph(pairwise('ywxz'))] * 1 +
-        [PrefGraph(pairwise('yzwx'))] * 8
+        [PrefDAG(pairwise('wxzy'))] * 7 +
+        [PrefDAG(pairwise('wyxz'))] * 2 +
+        [PrefDAG(pairwise('xyzw'))] * 4 +
+        [PrefDAG(pairwise('xzwy'))] * 5 +
+        [PrefDAG(pairwise('ywxz'))] * 1 +
+        [PrefDAG(pairwise('yzwx'))] * 8
     )
     results = ranked_pairs(ballots)
     ordering = list(nx.topological_sort(results))
 
-    assert ordering == ['w', 'x', 'z']
+    assert ordering == ['w', 'x', 'y', 'z']
