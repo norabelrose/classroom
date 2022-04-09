@@ -6,7 +6,7 @@ case, but we can use heuristics to find decent approximations.
 <https://en.wikipedia.org/wiki/Feedback_arc_set>
 """
 from dataclasses import dataclass, field
-from typing import Any, cast, Iterable
+from typing import Any, cast, Iterable, Literal
 import networkx as nx
 import numpy as np
 import random
@@ -156,3 +156,18 @@ def fas_to_max_acyclic_subgraph(graph: nx.DiGraph, fas: Iterable):
         subgraph.remove_edge(a, b)
     
     return subgraph
+
+
+def max_acyclic_subgraph(
+        graph: nx.DiGraph,
+        method: Literal['berger_shor', 'eades'],
+        seed: int | None = 42,  # None for non-deterministic output; ignored by Eades
+    ) -> nx.DiGraph:
+    """Given a potentially cyclic digraph, return (an approximation to) the maximum acyclic subgraph."""
+    match method:
+        case 'berger_shor':
+            return fas_to_max_acyclic_subgraph(graph, berger_shor_fas(graph, seed=seed))
+        case 'eades':
+            return fas_to_max_acyclic_subgraph(graph, eades_fas(graph))
+        case _:
+            raise ValueError(f'Unknown method: {method}')
