@@ -7,7 +7,8 @@ setup(
     description="Preference-based reinforcement learning in PyTorch and JAX with a browser-based GUI.",
     install_requires=[
         "sanic",
-        "networkx"
+        "networkx",
+        "numpy"
     ],
     python_requires=">=3.10",
     extras_require={
