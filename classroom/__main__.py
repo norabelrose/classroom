@@ -57,9 +57,9 @@ async def feedback_socket(request, ws):
                 # Add a strict preference to the graph, returning the next pair of clips to compare.
                 case 'addPref', {'nodes': [str(clipA), str(clipB)], 'strict': bool(strict)}:
                     if strict:
-                        pref_graph.add_pref(clipA, clipB)
+                        pref_graph.add_greater(clipA, clipB)
                     else:
-                        pref_graph.add_indifference(clipA, clipB)
+                        pref_graph.add_equals(clipA, clipB)
 
                     await reply({
                         'clipA': pref_graph.median(),

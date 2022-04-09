@@ -1,9 +1,8 @@
 from brax import QP
 from brax.envs.env import Env, State, Wrapper
-from jax.experimental.host_callback import id_tap
+from jax.experimental.host_callback import call, id_tap
 from jax.tree_util import tree_map
 from pathlib import Path
-from ..mmap import MmapQueueWriter
 from .brax_renderer import BraxRenderer
 from .utils import BraxClip, tree_stack
 import jax.numpy as jnp
@@ -36,7 +35,6 @@ class BraxRecorder(Wrapper):
 
         self._clip_dir = self._db_path / 'clips'
         self._clip_dir.mkdir(parents=True, exist_ok=True)
-        # self._writer = MmapQueueWriter(clip_dir)
 
         # Save a renderer that can be used to render the clips later
         with open(self._db_path / 'renderer.pkl', 'wb') as f:

@@ -7,7 +7,7 @@ class GymRecorder(gym.Wrapper):
     """Wrapper class for a Gym environment for gathering human feedback."""
     env: gym.Env
 
-    def __init__(self, env: gym.Env, clip_manager: ClipManager):
+    def __init__(self, env: gym.Env):
         super().__init__(env)
 
         assert not clip_manager.read_only, "Cannot use a read-only clip manager with a GymWrapper"
