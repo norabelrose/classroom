@@ -9,7 +9,8 @@ if TYPE_CHECKING:   # Prevent circular import
 
 
 class PrefGraph(nx.DiGraph):
-    """`PrefGraph` represents a possibly cyclic set of preferences over clips as a weighted directed graph.
+    """
+    `PrefGraph` represents a possibly cyclic set of preferences over clips as a weighted directed graph.
     Edge weights represent the strength of the preference of A over B, and indifferences are represented
     as edges with zero weights. Clips are represented as string IDs. If you want to prevent cycles from
     being added to the graph in an online fashion, you should probably use `PrefDAG` instead.
@@ -71,10 +72,16 @@ class PrefGraph(nx.DiGraph):
     def add_equals(self, a: str, b: str, **attr):
         """Try to add the indifference relation `a ~ b`, and throw an error if the expected
         coherence properties of the graph would be violated."""
+        if attr.setdefault('confidence', 0.5) != 0.5:
+            raise CoherenceViolation("Indifferences must have confidence")
         if attr.setdefault('weight', 0.0) != 0.0:
             raise CoherenceViolation("Indifferences cannot have nonzero weight")
 
         self.add_edge(a, b, **attr)
+    
+    # Convenience aliases
+    add_pref = add_greater
+    add_indiff = add_equals
     
     def draw(self):
         """Displays a visualization of the graph using `matplotlib`. Strict preferences
@@ -91,9 +98,10 @@ class PrefGraph(nx.DiGraph):
         """Yields sets of nodes that are equivalent under the indifference relation."""
         return nx.connected_components(self.indifferences)
     
-    def find_acyclic_subgraph(self) -> PrefDAG:
+    def find_acyclic_subgraph(self) -> 'PrefDAG':
         """Return an acyclic subgraph of this graph as a `PrefDAG`. The algorithm will try
-        to remove as few preferences as possible, but it is not guaranteed to be optimal."""
+        to remove as few preferences as possible, but it is not guaranteed to be optimal.
+        If the graph is already acyclic, the returned `PrefDAG` will be isomorphic to this graph."""
         fas = set(eades_fas(self.strict_prefs))
         return PrefDAG((
             (u, v, d) for u, v, d in self.edges(data=True)  # type: ignore

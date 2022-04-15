@@ -16,6 +16,3 @@ def test_max_acyclic_subgraph(graph: nx.DiGraph, method):
     # TODO: Figure out why this fails for Berger-Shor
     if method == 'eades' and nx.is_directed_acyclic_graph(graph):
         assert nx.is_isomorphic(subgraph, graph)
-    
-    # matcher = nx.algorithms.isomorphism.DiGraphMatcher(graph, subgraph)
-    # assert matcher.subgraph_is_isomorphic()

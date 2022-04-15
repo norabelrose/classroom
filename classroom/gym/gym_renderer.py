@@ -1,6 +1,6 @@
 # from flask import make_response, Response
 from gym.wrappers import RecordVideo
-from .renderer import Renderer
+from ..renderer import Renderer
 import gym
 import numpy as np
 import tempfile

@@ -65,7 +65,20 @@ class PrefDAG(PrefGraph):
                 hi = pivot
         
         return lo
+    
+    def transitive_closure(self) -> 'PrefDAG':
+        """Return a new `PrefDAG` whose strict preference relation is the transitive closure of this one,
+        while keeping the indifferences intact."""
+        closure = PrefDAG(self)
+        order = list(nx.topological_sort(self.strict_prefs))
 
+        # Algorithm copied from `nx.transitive_closure_dag`- we don't use this function directly
+        # in order to avoid an unnecessary copy
+        strict_view = closure.strict_prefs
+        for v in reversed(order):
+            closure.add_edges_from((v, u) for u in nx.descendants_at_distance(strict_view, v, 2))
+        
+        return closure
 
 class TransitivityViolation(CoherenceViolation):
     """Raised when a mutation of a `PrefDAG` would cause transitivity to be violated"""

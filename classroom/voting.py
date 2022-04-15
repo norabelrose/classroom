@@ -12,14 +12,12 @@ def ranked_pairs(ballots: Iterable[PrefDAG]) -> PrefDAG:
     """
     Nicolaus Tidemann's ranked pairs voting algorithm. Returns a weighted DAG where
     the weights correspond to the margin of victory for the victor in each pair.
-    O(n^2) time and space complexity.
     See <https://en.wikipedia.org/wiki/Ranked_pairs>
     """
     tally = Counter((
-        (candidate, loser)
+        (winner, loser)
         for ballot in ballots
-        for candidate in ballot
-        for loser in nx.dag.descendants(ballot.strict_prefs, candidate)  # Indifferences are ignored
+        for winner, loser in nx.transitive_closure_dag(ballot.strict_prefs).edges  # type: ignore[attr-defined]
     ))
 
     # Iterate over pairs in descending order of vote count, adding each one to
