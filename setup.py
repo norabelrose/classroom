@@ -6,10 +6,11 @@ setup(
     version="0.1",
     description="Preference-based reinforcement learning in PyTorch and JAX with a browser-based GUI.",
     install_requires=[
-        "sanic",
         "networkx",
         "numpy",
-        "scipy>=1.8.0"  # For sparse linear algebra
+        "opencv-python",    # For generating PNG thumbnails
+        "sanic",
+        "scipy>=1.8.0"      # For sparse linear algebra
     ],
     python_requires=">=3.10",
     extras_require={

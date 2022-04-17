@@ -1,4 +1,4 @@
-from .mle import thurstone_mle
+from .bayes import estimate_rewards
 from .pref_dag import PrefDAG
 from .renderer import Renderer
 
@@ -75,15 +75,15 @@ async def feedback_socket(request, ws):
                 
                 # Serve the preference graph in Cytoscape.js format.
                 case 'getGraph', None:
-                    thurstone_mle(pref_graph)
+                    rewards = estimate_rewards(pref_graph, 'bradley-terry')
                     await reply({
                         'nodes': [
                             {'data': {
                                 'id': str(node),
                                 'value': node,
-                                'name': f"{pref_graph.nodes[node]['reward']:.3f}"
+                                'name': f"{reward:.3f}"
                             }}
-                            for node in pref_graph.nodes
+                            for node, reward in zip(pref_graph.nodes, rewards)
                         ],
                         'strictPrefs': [
                             {'data': {'source': a, 'target': b, 'strict': True}}

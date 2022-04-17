@@ -72,8 +72,6 @@ class PrefGraph(nx.DiGraph):
     def add_equals(self, a: str, b: str, **attr):
         """Try to add the indifference relation `a ~ b`, and throw an error if the expected
         coherence properties of the graph would be violated."""
-        if attr.setdefault('confidence', 0.5) != 0.5:
-            raise CoherenceViolation("Indifferences must have confidence")
         if attr.setdefault('weight', 0.0) != 0.0:
             raise CoherenceViolation("Indifferences cannot have nonzero weight")
 
@@ -111,6 +109,23 @@ class PrefGraph(nx.DiGraph):
     def is_quasi_transitive(self) -> bool:
         """Return whether the strict preferences are acyclic."""
         return nx.is_directed_acyclic_graph(self.strict_prefs)
+    
+    def pref_prob(self, a: str, b: str, eps: float = 5e-324) -> float:
+        """Return the probability that `a` is preferred to `b`."""
+        a_weight = self.pref_weight(a, b)
+        denom = a_weight + self.pref_weight(b, a)
+
+        # If there's no strict preference between a and b, then the
+        # probability that A is preferred to B is 1/2.
+        return (a_weight + eps) / (denom + 2 * eps)
+    
+    def pref_weight(self, a: str, b: str, default: float = 0.0) -> float:
+        """
+        Return the weight of the preference `a > b`, or 0.0 if there is no such
+        preference. Preferences with no explicit weight are assumed to have weight 1.
+        """
+        attrs = self.edges.get((a, b), None)
+        return attrs.get('weight', 1.0) if attrs is not None else default
     
     def unlink(self, a: str, b: str):
         """Remove the preference relation between `a` and `b`."""
