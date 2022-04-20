@@ -1,4 +1,5 @@
-from .bayes import estimate_rewards
+from .bayes import update_rewards
+from .graph_sorter import GraphSorter
 from .pref_dag import PrefDAG
 from .renderer import Renderer
 
@@ -9,6 +10,7 @@ from sanic.response import html, raw
 import cv2
 import networkx as nx
 import pickle
+import time
 import warnings
 
 ROOT_DIR = Path(__file__).parent
@@ -42,14 +44,14 @@ def filter_ips(request: Request):
 async def feedback_socket(request, ws):
     """Opens a WebSocket-based Remote Procedure Call connection with the client."""
     import json
-    import random
 
     db_path: Path = app.config['database']
-    clip_ids = [path.stem for path in db_path.glob('clips/*.pkl')]
-    random.shuffle(clip_ids)
-
     with PrefDAG.open(db_path / 'prefs.pkl') as pref_graph:
-        while clip_ids:
+        dirty = True    # Do the reward estimates need to be updated?
+        pref_graph.add_nodes_from(path.stem for path in db_path.glob('clips/*.pkl'))
+        sorter = GraphSorter(pref_graph)
+
+        while sorter:
             call = json.loads(await ws.recv())
 
             async def reply(result):
@@ -58,32 +60,40 @@ async def feedback_socket(request, ws):
 
             match call.get('method'), call.get('params'):
                 # Add a strict preference to the graph, returning the next pair of clips to compare.
-                case 'addPref', {'nodes': [str(clipA), str(clipB)], 'strict': bool(strict)}:
-                    if strict:
-                        pref_graph.add_greater(clipA, clipB)
-                    else:
-                        pref_graph.add_equals(clipA, clipB)
+                case 'addPref', {'left': str(left), 'right': str(right), 'pref': '>' | '<' | '=' as pref}:
+                    match pref:
+                        case '>':
+                            sorter.greater()
+                        case '<':
+                            sorter.lesser()
+                        case '=':
+                            sorter.equals()
 
-                    await reply({
-                        'clipA': pref_graph.median(),
-                        'clipB': clip_ids.pop()
-                    })
+                    dirty = True
+                    left, right = sorter.current_pair()
+                    await reply({'left': left, 'right': right})
                 
                 # Return the first pair of clips to compare.
                 case 'clips', None:
-                    await reply({ 'clipA': clip_ids.pop(), 'clipB': clip_ids.pop() })
+                    left, right = sorter.current_pair()
+                    print(f"Sending: {left}, {right}")
+                    await reply({ 'left': left, 'right': right })
                 
                 # Serve the preference graph in Cytoscape.js format.
                 case 'getGraph', None:
-                    rewards = estimate_rewards(pref_graph, 'bradley-terry')
+                    if dirty:
+                        update_rewards(pref_graph, 'bradley-terry')
+                        dirty = False
+                    
+                    node_view = pref_graph.nonisolated.nodes
                     await reply({
                         'nodes': [
                             {'data': {
                                 'id': str(node),
                                 'value': node,
-                                'name': f"{reward:.3f}"
+                                'name': f"{node_view[node].get('reward', 0.0):.3f}"
                             }}
-                            for node, reward in zip(pref_graph.nodes, rewards)
+                            for node in node_view
                         ],
                         'strictPrefs': [
                             {'data': {'source': a, 'target': b, 'strict': True}}
@@ -94,7 +104,7 @@ async def feedback_socket(request, ws):
                             for (a, b) in pref_graph.indifferences.edges
                         ],
                         'connectedNodes': pref_graph.number_of_nodes(),
-                        'totalNodes': len(clip_ids),
+                        'totalNodes': len(pref_graph),
 
                         'longestPath': nx.dag_longest_path_length(pref_graph.strict_prefs),
                         'numPrefs': pref_graph.strict_prefs.number_of_edges(),

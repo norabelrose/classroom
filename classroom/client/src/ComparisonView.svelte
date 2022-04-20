@@ -3,9 +3,12 @@
     import { Jumper } from 'svelte-loading-spinners';
     import { onMount } from 'svelte';
 
-    let clipA: string;
-    let clipB: string;
-    onMount(async () => ({ clipA, clipB } = await globalSocket.call('clips')));
+    let left: string;
+    let right: string;
+    onMount(async () => {
+        ({ left, right } = await globalSocket.call('clips'));
+        console.log("Hiya");
+    });
 
     type Pref = '>' | '<' | '=';
     const key2pref: Record<string, Pref> = {
@@ -62,11 +65,8 @@
         if (!prefStack.length) {
             console.log(`Committing ${pref}`);
 
-            globalSocket.call('addPref', {
-                nodes: pref === '>' ? [clipA, clipB] : [clipB, clipA],
-                strict: pref !== '='
-            })
-            .then((msg) => ({ clipA, clipB } = msg));
+            globalSocket.call('addPref', { left, right, pref })
+                .then((msg) => ({ left, right } = msg));
         }
     }
 </script>
@@ -74,19 +74,19 @@
 <svelte:window on:keydown={handleKeyDown} on:keyup={handleKeyUp} />
 
 <div id="container">
-    {#if !clipA || !clipB}
+    {#if !left || !right}
         <Jumper />
     {:else}
         <div>
             <div class="clips">
                 <div class:magnified={highlight === '>'} class:minified={highlight && highlight !== '>'} id="gt">
-                    <h2>Clip A</h2>
-                    <iframe title="Clip A" src={`/viewer_html/${clipA}`}/>
+                    <h2>Left</h2>
+                    <iframe title="Left" src={`/viewer_html/${left}`}/>
                 </div>
                 <div id="symbol">{highlight ?? ' '}</div>
                 <div class:magnified={highlight === '<'} class:minified={highlight && highlight !== '<'} id="lt">
-                    <h2>Clip B</h2>
-                    <iframe title="Clip B" src={`/viewer_html/${clipB}`}/>
+                    <h2>Right</h2>
+                    <iframe title="Right" src={`/viewer_html/${right}`}/>
                 </div>
             </div>
             <div class="buttons">
@@ -94,7 +94,7 @@
                     on:mousedown={() => prefStack = [...prefStack, '>']}
                     on:mouseup={() => releasePref('>')}
                     on:mouseleave={() => prefStack = []}>
-                    Clip A is better
+                    Left is better
                 </button>
                 <button
                     on:mousedown={() => prefStack = [...prefStack, '=']}
@@ -106,7 +106,7 @@
                     on:mousedown={() => prefStack = [...prefStack, '<']}
                     on:mouseup={() => releasePref('<')}
                     on:mouseleave={() => prefStack = []}>
-                    Clip B is better
+                    Right is better
                 </button>
             </div>
         </div>

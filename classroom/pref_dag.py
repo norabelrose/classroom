@@ -11,10 +11,10 @@ class PrefDAG(PrefGraph):
     the offending cycle to the user. We do not assume indifferences are transitive due to the Sorites
     paradox. See <https://en.wikipedia.org/wiki/Sorites_paradox#Resolutions_in_utility_theory>.
     """
-    def add_edge(self, a: str, b: str, weight: float = 1, **attr):
-        super().add_edge(a, b, weight, **attr)
+    def add_edge(self, a: str, b: str, **attr):
+        super().add_edge(a, b, **attr)
 
-        if weight > 0:
+        if attr.get('weight', 1) > 0:
             # This is a strict preference, so we should check for cycles
             try:
                 cycle = nx.find_cycle(self.strict_prefs, source=a)
@@ -40,6 +40,9 @@ class PrefDAG(PrefGraph):
         else:
             self.remove_edges_from(ebunch_to_add)
             raise TransitivityViolation(f"Edges would create a cycle: {cycle}")
+    
+    def acyclic_subgraph(self) -> 'PrefDAG':
+        return self
     
     def median(self) -> str:
         """Return the node at index n // 2 of a topological ordering of the strict preference relation."""

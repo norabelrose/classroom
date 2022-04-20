@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING
 import networkx as nx
 import pickle
 from .fas import eades_fas
@@ -35,38 +35,40 @@ class PrefGraph(nx.DiGraph):
     @property
     def indifferences(self) -> nx.Graph:
         """Return a read-only, undirected view of the subgraph containing only indifferences."""
+        edge_view = self.edges
         return nx.graphviews.subgraph_view(
             self,
-            filter_edge=lambda a, b: self.edges[a, b].get('weight', 1.0) == 0.0
+            filter_edge=lambda a, b: edge_view[a, b].get('weight', 1.0) == 0.0
         ).to_undirected(as_view=True)
+    
+    @property
+    def nonisolated(self) -> 'PrefGraph':
+        deg_view = self.degree
+        return nx.graphviews.subgraph_view(
+            self,
+            filter_node=lambda n: deg_view(n) > 0
+        )
     
     @property
     def strict_prefs(self) -> nx.DiGraph:
         """Return a read-only view of the subgraph containing only strict preferences."""
+        edge_view = self.edges
         return nx.graphviews.subgraph_view(
             self,
-            filter_edge=lambda a, b: self.edges[a, b].get('weight', 1.0) > 0
+            filter_edge=lambda a, b: edge_view[a, b].get('weight', 1.0) > 0
         )
     
     def __repr__(self) -> str:
         num_indiff = self.indifferences.number_of_edges()
-        return f'{type(self).__name__}({len(self.strict_prefs)} strict prefs, {num_indiff} indifferences)'
+        num_prefs = self.strict_prefs.number_of_edges()
+        return f'{type(self).__name__}({num_prefs} strict prefs, {num_indiff} indifferences)'
     
-    def add_edge(self, a: str, b: str, weight: float = 1.0, **attr):
-        """Add an edge to the graph, and check for coherence violations. Usually you
-        should use the `add_greater` or `add_equals` wrapper methods instead of this method."""
-        if weight < 0:
-            raise CoherenceViolation("Preferences must have non-negative weight")
-        
-        super().add_edge(a, b, weight=weight, **attr)
-    
-    def add_greater(self, a: str, b: str, weight: float = 1.0, **attr):
+    def add_greater(self, a: str, b: str, **attr):
         """Try to add the preference `a > b`, and throw an error if the expected coherence
         properties of the graph would be violated."""
-        if weight <= 0.0:
+        if attr.get('weight', 1) <= 0.0:
             raise CoherenceViolation("Strict preferences must have positive weight")
         
-        attr.update(weight=weight)
         self.add_edge(a, b, **attr)
     
     def add_equals(self, a: str, b: str, **attr):
@@ -76,6 +78,14 @@ class PrefGraph(nx.DiGraph):
             raise CoherenceViolation("Indifferences cannot have nonzero weight")
 
         self.add_edge(a, b, **attr)
+    
+    def add_edge(self, a: str, b: str, **attr):
+        """Add an edge to the graph, and check for coherence violations. Usually you
+        should use the `add_greater` or `add_equals` wrapper methods instead of this method."""
+        if attr.get('weight', 1) < 0:
+            raise CoherenceViolation("Preferences must have non-negative weight")
+        
+        super().add_edge(a, b, **attr)
     
     # Convenience aliases
     add_pref = add_greater
@@ -92,14 +102,12 @@ class PrefGraph(nx.DiGraph):
         nx.draw_networkx_edges(self.indifferences, pos, arrowstyle='-', style='dashed')
         nx.draw_networkx_labels(strict_subgraph, pos)
     
-    def equivalence_classes(self) -> Generator[set[str], None, None]:
-        """Yields sets of nodes that are equivalent under the indifference relation."""
-        return nx.connected_components(self.indifferences)
-    
-    def find_acyclic_subgraph(self) -> 'PrefDAG':
+    def acyclic_subgraph(self) -> 'PrefDAG':
         """Return an acyclic subgraph of this graph as a `PrefDAG`. The algorithm will try
         to remove as few preferences as possible, but it is not guaranteed to be optimal.
         If the graph is already acyclic, the returned `PrefDAG` will be isomorphic to this graph."""
+        from .pref_dag import PrefDAG
+        
         fas = set(eades_fas(self.strict_prefs))
         return PrefDAG((
             (u, v, d) for u, v, d in self.edges(data=True)  # type: ignore

@@ -9,7 +9,7 @@ import numpy as np
 import warnings
 
 
-def estimate_rewards(
+def update_rewards(
         G: PrefGraph,
         family: Literal['bradley-terry', 'thurstone'] = 'bradley-terry',
         *,
@@ -18,16 +18,19 @@ def estimate_rewards(
         tol: float = 1e-5
     ):
     """
-    Compute maximum a posteriori (MAP) estimates of the utilities associated with the
-    nodes of a preference graph.
+    Compute maximum a posteriori (MAP) estimates of the latent rewards associated with the
+    non-isolated nodes of a preference graph, writing the results to the nodes' attribute
+    dictionaries under the 'reward' key. If there are already reward estimates in the graph,
+    they will be used to initialize the solver and then overwritten. Isolated nodes can be
+    implicitly assumed to have zero reward.
 
     Parameters
     ----------
     graph: PrefGraph
-        The preference graph to estimate utilities for.
+        The preference graph whose reward estimates should be updated.
     family: Literal['bradley-terry', 'thurstone']
-        The family of paired compairson model to use for estimation. Bradley-Terry
-        models assume differences in utilities have a logistic distribution, whereas
+        The type of paired compairson model to use for estimation. Bradley-Terry
+        models assume differences in rewards have a logistic distribution, whereas
         Thurstone models assume a Gaussian distribution.
     eps: float
         Laplace smoothing parameter to ensure that each node has a nonzero probability
@@ -42,20 +45,30 @@ def estimate_rewards(
         If the inner L-BFGS-B solver fails to converge.
     """
     assert eps > 0, "Laplace smoothing parameter must be positive"
-    assert G, "Graph must be non-empty"
 
-    # The estimates for the latent utilities are coefficients of a generalized linear
+    # Only explicitly compute rewards for non-isolated nodes. Isolated nodes will always
+    # be assigned a reward of 0, and in the common case where most nodes are isolated,
+    # this will save us a lot of time.
+    nonisolated = [n for n in G if G.degree(n) > 0]
+    if not nonisolated:
+        return
+
+    # The estimates for the latent rewards are coefficients of a generalized linear
     # model whose design matrix is the negative transpose of the graph incidence matrix.
     # The matrix is constructed so that multiplying it by the vector of latent
-    # utilities yields a vector of length k where each entry is the difference
-    # in utilities f(i) - f(j) for the corresponding edge.
-    X = -nx.incidence_matrix(G, oriented=True).T
+    # rewards yields a vector of length k where each entry is the difference
+    # in rewards f(i) - f(j) for the corresponding edge.
+    X = -nx.incidence_matrix(G, nodelist=nonisolated, oriented=True).T
     y = np.array([G.pref_prob(a, b, eps=eps) for a, b in G.edges])
 
     # Start from previously computed estimates of the latent rewards if available.
-    b0 = G.graph.get('rewards')
-    if b0 is None or len(b0) != len(G):
-        b0 = np.zeros(G.number_of_nodes())
+    b0 = np.zeros(len(nonisolated))
+    for i, node in enumerate(nonisolated):
+        reward = G.nodes[node].get('reward')
+        if reward is not None:
+            b0[i] = reward
+        else:
+            break
 
     match family:
         case 'bradley-terry':   link = logistic     # Logistic regression
@@ -90,8 +103,8 @@ def estimate_rewards(
     if not result.success:
         raise RuntimeError(f"Reward estimation failed to converge: {result.message}")
     
-    # Cache the results for future use
-    rewards = G.graph['rewards'] = result.x
-    return rewards
+    # Write the results back to the graph
+    for node, reward in zip(nonisolated, result.x):
+        G.nodes[node]['reward'] = reward
 
 warnings.filterwarnings('ignore', category=FutureWarning, message='incidence_matrix')

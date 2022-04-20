@@ -1,10 +1,11 @@
 from brax import QP
 from brax.envs.env import Env, State, Wrapper
-from jax.experimental.host_callback import call, id_tap
+from jax.experimental.host_callback import id_tap
 from jax.tree_util import tree_map
 from pathlib import Path
 from .brax_renderer import BraxRenderer
 from .utils import BraxClip, tree_stack
+import jax
 import jax.numpy as jnp
 import numpy as np
 import pickle
@@ -48,13 +49,17 @@ class BraxRecorder(Wrapper):
         return super().reset(rng)
     
     def step(self, state: State, action: jnp.ndarray) -> State:
+        # It seems to be important for performance to commit to CPU front to ensure
+        # that we don't cause any needless transfers from the host back to the device
+        cpu = jax.devices('cpu')[0]
+
         # For simplicity we record the states and actions from the env in the first
         # `clips_per_batch` environments in the batch
         stop = self._clips_per_batch
         id_tap(
-            # It seems to be important for performance to convert to NumPy up front to ensure
-            # that we don't cause any needless transfers from the host back to the device
-            lambda x, _: self._process_timestep(*tree_map(lambda field: np.asarray(field), x)),
+            lambda x, _: self._process_timestep(
+                *tree_map(lambda field: jax.device_put(field, cpu), x)
+            ),
             (tree_map(lambda field: field[:stop], state.qp), action[:stop], state.done[:stop]),
         )
         return super().step(state, action)
@@ -83,7 +88,11 @@ class BraxRecorder(Wrapper):
                     with open(self._clip_dir / clip_name, 'wb') as f:
                         # Transpose our list of QPs into a QP where each field has a timestep dimension.
                         # This saves space in the queue and on disk.
-                        pickle.dump(BraxClip(tree_stack(s_buf), np.stack(a_buf)), f)
+                        clip = BraxClip(
+                            tree_map(np.asarray, tree_stack(s_buf)),
+                            np.stack(a_buf)
+                        )
+                        pickle.dump(clip, f)
                 
                 s_buf.clear()
                 a_buf.clear()
