@@ -12,11 +12,9 @@ class RewardLearner(ABC):
         """
         Predict the reward for the given state, action, and next state.
         """
-        pass
 
     @abstractmethod
     def learning_step(self, state, action, next_state, reward) -> None:
         """
         Update the model based on the given state, action, next state, and reward.
         """
-        pass

@@ -1,4 +1,4 @@
-import type { Core, Stylesheet } from "cytoscape";
+import type { NodeSingular, Stylesheet } from "cytoscape";
 
 
 const themeQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -8,19 +8,22 @@ const contrastColor = themeQuery.matches ? 'white' : 'black';
 export const graphStyles: Stylesheet[] = [
     { selector: '*', style: { color: contrastColor } },
     {
-        selector: 'node',
+        selector: 'node.clip',
         style: {
             'background-color': '#1f78b4',  // Light blue; same color as NetworkX plots
             'background-fit': 'contain',
-            'background-image': elem => `/thumbnail/${elem.data('id')}/60`,
-            'label': 'data(name)',
+            'background-image': (elem: NodeSingular) => `/thumbnail/${elem.data('id')}/60`,
+            'label': (elem: NodeSingular) => {
+                const reward: number = elem.data('reward');
+                return reward !== undefined ? reward.toLocaleString() : '';
+            },
             'shape': 'round-rectangle',
             'height': '128px',
             'width': '128px',
         }
     },
     {
-        selector: 'node:selected',
+        selector: 'node.clip:selected',
         style: {
             'border-width': '4px',
             'border-color': 'plum',
@@ -33,7 +36,7 @@ export const graphStyles: Stylesheet[] = [
         }
     },
     {
-        selector: 'node:unselected',
+        selector: 'node.clip:unselected',
         style: {
             'transition-property': 'height, width',
             'transition-duration': '0.2s' as any, // Cytoscape types seem to be wrong here
@@ -41,14 +44,14 @@ export const graphStyles: Stylesheet[] = [
         }
     },
     {
-        selector: 'edge',
+        selector: 'edge.pref, .eh-preview',
         style: {
             'curve-style': 'bezier',
             'line-color': contrastColor,
         }
     },
     {
-        selector: 'edge[strict]',
+        selector: 'edge[?strict], .eh-ghost-edge',
         style: {
             'arrow-scale': 2,
             'line-style': 'solid',
@@ -57,35 +60,37 @@ export const graphStyles: Stylesheet[] = [
         } 
     },
     {
-        selector: 'edge[indiff]',
+        selector: 'edge.pref[!strict]',
         style: {
             'line-style': 'dashed'
         }
     },
     {
-        selector: 'edge:selected',
+        selector: 'edge.pref:selected',
         style: {
             'line-color': 'plum',
             'target-arrow-color': 'plum',
         }
     },
+    {
+        // Green plus button handle for adding edges
+        selector: '.eh-handle',
+        style: {
+            'background-color': 'green',
+            'content': "+",
+            'text-valign': 'center',
+        }
+    },
+    {
+        selector: '.eh-source, .eh-presumptive-target',
+        style: {
+            'border-color': 'green',
+            'border-width': '4px',
+        }
+    },
+    {
+        // Hide the ghost edge when a preview is being displayed
+        selector: 'edge.eh-preview-active',
+        style: { 'opacity': 0 }
+      }
 ];
-
-// Register the graph to have its color scheme automatically updated to match the browser/system preference
-// Returns a function that can be called to remove the listener
-export function autoUpdateColorScheme(graph: Core): () => void {
-    const updateTheme = (e: MediaQueryListEvent) => {
-        const contrastColor = e.matches ? 'white' : 'black';
-        if (graph == null)  // This could happen if the color theme is changed before the graph is loaded
-            return;
-        
-        graph.style()   // @ts-expect-error
-            .selector('*').style({ color: contrastColor })
-            .selector('edge').style({ 'line-color': contrastColor })
-            .selector('edge[strict]').style({ 'target-arrow-color': contrastColor })
-            .update();
-    };
-    themeQuery.addEventListener('change', updateTheme);
-
-    return () => themeQuery.removeEventListener('change', updateTheme);
-}

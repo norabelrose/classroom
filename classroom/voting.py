@@ -25,7 +25,7 @@ def ranked_pairs(ballots: Iterable[PrefDAG]) -> PrefDAG:
     results = PrefDAG()
     for (winner, runner_up), count in tally.most_common():
         try:
-            results.add_greater(winner, runner_up, weight=count)
+            results.add_pref(winner, runner_up, weight=count)
         except TransitivityViolation:
             continue
     

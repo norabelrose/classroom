@@ -36,5 +36,3 @@ export class RpcSocket {
         return promise;
     }
 }
-
-export const globalSocket = new RpcSocket(`ws://${location.host}/feedback`);

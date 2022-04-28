@@ -1,6 +1,5 @@
 from .bayes import update_rewards
-from .graph_sorter import GraphSorter
-from .pref_dag import PrefDAG
+from .graph_manager import GraphManager
 from .renderer import Renderer
 
 from pathlib import Path
@@ -10,7 +9,6 @@ from sanic.response import html, raw
 import cv2
 import networkx as nx
 import pickle
-import time
 import warnings
 
 ROOT_DIR = Path(__file__).parent
@@ -46,12 +44,12 @@ async def feedback_socket(request, ws):
     import json
 
     db_path: Path = app.config['database']
-    with PrefDAG.open(db_path / 'prefs.pkl') as pref_graph:
-        dirty = True    # Do the reward estimates need to be updated?
-        pref_graph.add_nodes_from(path.stem for path in db_path.glob('clips/*.pkl'))
-        sorter = GraphSorter(pref_graph)
+    strat = app.config.get('query_strategy', 'binsearch')
 
-        while sorter:
+    with GraphManager.open(db_path / 'prefs.pkl', strat) as manager:
+        G = manager.graph
+
+        while not manager.done:
             call = json.loads(await ws.recv())
 
             async def reply(result):
@@ -59,67 +57,80 @@ async def feedback_socket(request, ws):
                 await ws.send(json.dumps({'id': call.get('id'), 'result': result}))
 
             match call.get('method'), call.get('params'):
-                # Add a strict preference to the graph, returning the next pair of clips to compare.
-                case 'addPref', {'left': str(left), 'right': str(right), 'pref': '>' | '<' | '=' as pref}:
-                    match pref:
-                        case '>':
-                            sorter.greater()
-                        case '<':
-                            sorter.lesser()
-                        case '=':
-                            sorter.equals()
+                case 'add_pref', {'source': str(src), 'target': str(tgt), **attr}:
+                    weight = attr.get('weight', 1)
 
-                    dirty = True
-                    left, right = sorter.current_pair()
-                    await reply({'left': left, 'right': right})
+                    # Report a human comparison from the Compare tab. This adds an
+                    # edge to the graph, returning the next pair of clips to compare.
+                    if manager.current_query == (src, tgt):
+                        pref = '>'
+                    elif manager.current_query == (tgt, src):
+                        pref = '<'
+                    
+                    # Add or remove an arbitrary edge to the graph, outside of the Compare tab
+                    else:
+                        manager.add_pref(src, tgt, weight=weight)
+                        await reply({ 'status': 'ok' })
+                        continue
+
+                    # Return the next pair of clips to compare
+                    manager.commit_feedback(pref if weight > 0 else '=')
+
+                    left, right = manager.current_query
+                    await reply({ 'left': left, 'right': right })
                 
                 # Return the first pair of clips to compare.
                 case 'clips', None:
-                    left, right = sorter.current_pair()
-                    print(f"Sending: {left}, {right}")
+                    left, right = manager.current_query
                     await reply({ 'left': left, 'right': right })
                 
                 # Serve the preference graph in Cytoscape.js format.
                 case 'getGraph', None:
-                    if dirty:
-                        update_rewards(pref_graph, 'bradley-terry')
-                        dirty = False
-                    
-                    node_view = pref_graph.nonisolated.nodes
+                    node_view = G.nonisolated.nodes
+                    update_rewards(G)
+
                     await reply({
                         'nodes': [
-                            {'data': {
-                                'id': str(node),
-                                'value': node,
-                                'name': f"{node_view[node].get('reward', 0.0):.3f}"
-                            }}
+                            {
+                                'classes': ['clip'],
+                                'data': {
+                                    'id': str(node),
+                                    'reward': node_view[node].get('reward', None),
+                                }
+                            }
                             for node in node_view
                         ],
                         'strictPrefs': [
-                            {'data': {'source': a, 'target': b, 'strict': True}}
-                            for (a, b) in pref_graph.strict_prefs.edges
+                            {
+                                'classes': ['pref'],
+                                'data': {'source': a, 'target': b, 'strict': True}
+                            }
+                            for (a, b) in G.strict_prefs.edges
                         ],
                         'indifferences': [
-                            {'data': {'source': a, 'target': b, 'indiff': True}}
-                            for (a, b) in pref_graph.indifferences.edges
-                        ],
-                        'connectedNodes': pref_graph.number_of_nodes(),
-                        'totalNodes': len(pref_graph),
-
-                        'longestPath': nx.dag_longest_path_length(pref_graph.strict_prefs),
-                        'numPrefs': pref_graph.strict_prefs.number_of_edges(),
-                        'numIndifferences': pref_graph.indifferences.number_of_edges(),
+                            {
+                                'classes': ['pref'],
+                                'data': {'source': a, 'target': b, 'strict': False}
+                            }
+                            for (a, b) in G.indifferences.edges
+                        ]
                     })
                 
-                # Compute a planar layout for the graph
-                case 'getPlanarLayout', None:
+                case 'getStats', None:
                     await reply({
-                        node: dict(x=x, y=y)
-                        for node, (x, y) in nx.planar_layout(pref_graph.strict_prefs).items()
+                        'connectedNodes': len(G.nonisolated),
+                        'totalNodes': len(G),
+
+                        'longestPath': nx.dag_longest_path_length(G.strict_prefs),
+                        'numPrefs': G.strict_prefs.number_of_edges(),
+                        'numIndifferences': G.indifferences.number_of_edges(),
                     })
+                
+                case 'remove_pref', {'source': str(src), 'target': str(tgt)}:
+                    manager.unlink(src, tgt)
                 case _:
                     warnings.warn(f"Malformed RPC message: {call}")
-                    await ws.send(json.dumps({'id': call.get('id'), 'error': 'Malformed RPC message.'}))
+                    await ws.send(json.dumps({'id': call.get('id'), 'error': "Malformed RPC message."}))
 
 
 @app.route("/thumbnail/<node>/<frame:int>")

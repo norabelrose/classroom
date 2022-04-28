@@ -54,6 +54,7 @@ export default {
 		// Needed to make tippy.js work; see
 		// https://atomiks.github.io/tippyjs/v6/faq/#im-getting-uncaught-referenceerror-process-is-not-defined
 		replace({
+			preventAssignment: true,
 			'process.env.NODE_ENV': JSON.stringify(production ? 'production' : 'development'),
 		}),
 

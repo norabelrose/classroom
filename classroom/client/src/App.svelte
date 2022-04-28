@@ -1,8 +1,9 @@
 <script lang="ts">
 	import ComparisonView from './ComparisonView.svelte';
+    import { GraphController, undoStack, redoStack, statusBarItems } from './graph/graph_controller';
 	import GraphView from './graph/GraphView.svelte';
-	import HamburgerButton from './HamburgerButton.svelte';
 	import Modal from './Modal.svelte';
+    import StatusBar from './StatusBar.svelte';
 	import ViewSettings from './graph/ViewSettings.svelte';
 	import { onMount } from 'svelte';
 	import { selectedTab } from './stores';
@@ -14,9 +15,8 @@
 	let popover: HTMLDivElement;
     let settingsButton: HTMLSpanElement;
 	let showingHelp = false;
-	let showingSidebar = false;
 
-	onMount(() => {
+	onMount(async () => {
         tippy(settingsButton, {
             // interactive: true,
             // allowHTML: true,
@@ -28,6 +28,8 @@
             placement: 'bottom',
             trigger: 'click',
         });
+
+        GraphController.updateStatusBar();
     });
     
     // For the fullscreen button in the nav bar
@@ -60,11 +62,20 @@
 
 <div id="content">
 	<header class="nav">
-		<HamburgerButton bind:open={showingSidebar}/>
 		<!-- Undo Button -->
-		<span class="control nav-item" id="undo" title="Undo">
+		<button class="control nav-item" id="undo"
+            disabled={$undoStack.length === 0}
+            on:click={GraphController.undo}
+            title={$undoStack.length ? "Undo" : "Nothing to Undo"}>
 			<svg><use href="/buttons.svg#undo"/></svg>
-		</span>
+        </button>
+        <!-- Redo Button -->
+		<button class="control nav-item" id="redo"
+            disabled={$redoStack.length === 0}
+            on:click={GraphController.redo}
+            title={$redoStack.length ? "Redo" : "Nothing to Redo"}>
+            <svg style="transform: scale(-1, 1);"><use href="/buttons.svg#undo"/></svg>
+        </button>
 		<span class="spacer"></span>
 		<div class="tab-container">
 			<span class="control tab" class:tab-selected={$selectedTab === 'compare'}
@@ -99,6 +110,7 @@
 	{:else}
 		<GraphView />
 	{/if}
+    <StatusBar items={$statusBarItems}/>
 </div>
 
 <div bind:this={popover} id="popover">
@@ -144,9 +156,12 @@
         width: 1.5rem;
     }
     .nav-item {
+        background-color: transparent;
+        border: none;
         display: block;
         font-size: 1.25rem;
         margin: 1rem 0.5rem;
+        padding: 0;
     }
     .separator {
         border-left: 1px solid var(--nav-gray);

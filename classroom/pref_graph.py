@@ -1,8 +1,5 @@
-from contextlib import contextmanager
-from pathlib import Path
 from typing import TYPE_CHECKING
 import networkx as nx
-import pickle
 from .fas import eades_fas
 if TYPE_CHECKING:   # Prevent circular import
     from .pref_dag import PrefDAG
@@ -15,23 +12,6 @@ class PrefGraph(nx.DiGraph):
     as edges with zero weights. Clips are represented as string IDs. If you want to prevent cycles from
     being added to the graph in an online fashion, you should probably use `PrefDAG` instead.
     """
-    @classmethod
-    @contextmanager
-    def open(cls, path: Path | str):
-        """Open a pickled `PrefGraph` from a file, and ensure it is saved when the context is exited."""
-        path = Path(path)
-        if path.exists():
-            with open(path, 'rb') as f:
-                graph = pickle.load(f)
-        else:
-            graph = cls()
-        
-        try:
-            yield graph
-        finally:        
-            with open(path, 'wb') as f:
-                pickle.dump(graph, f)
-    
     @property
     def indifferences(self) -> nx.Graph:
         """Return a read-only, undirected view of the subgraph containing only indifferences."""
@@ -63,16 +43,8 @@ class PrefGraph(nx.DiGraph):
         num_prefs = self.strict_prefs.number_of_edges()
         return f'{type(self).__name__}({num_prefs} strict prefs, {num_indiff} indifferences)'
     
-    def add_greater(self, a: str, b: str, **attr):
-        """Try to add the preference `a > b`, and throw an error if the expected coherence
-        properties of the graph would be violated."""
-        if attr.get('weight', 1) <= 0.0:
-            raise CoherenceViolation("Strict preferences must have positive weight")
-        
-        self.add_edge(a, b, **attr)
-    
-    def add_equals(self, a: str, b: str, **attr):
-        """Try to add the indifference relation `a ~ b`, and throw an error if the expected
+    def add_indiff(self, a: str, b: str, **attr):
+        """Try to dd the indifference relation `a ~ b`, and throw an error if the expected
         coherence properties of the graph would be violated."""
         if attr.setdefault('weight', 0.0) != 0.0:
             raise CoherenceViolation("Indifferences cannot have nonzero weight")
@@ -81,15 +53,13 @@ class PrefGraph(nx.DiGraph):
     
     def add_edge(self, a: str, b: str, **attr):
         """Add an edge to the graph, and check for coherence violations. Usually you
-        should use the `add_greater` or `add_equals` wrapper methods instead of this method."""
+        should use the `add_pref` or `add_indiff` wrapper methods instead of this method."""
         if attr.get('weight', 1) < 0:
             raise CoherenceViolation("Preferences must have non-negative weight")
         
         super().add_edge(a, b, **attr)
     
-    # Convenience aliases
-    add_pref = add_greater
-    add_indiff = add_equals
+    add_pref = add_edge
     
     def draw(self):
         """Displays a visualization of the graph using `matplotlib`. Strict preferences

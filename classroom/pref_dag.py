@@ -44,30 +44,10 @@ class PrefDAG(PrefGraph):
     def acyclic_subgraph(self) -> 'PrefDAG':
         return self
     
-    def median(self) -> str:
-        """Return the node at index n // 2 of a topological ordering of the strict preference relation."""
-        middle_idx = len(self.strict_prefs) // 2
-
-        for i, node in enumerate(nx.topological_sort(self.strict_prefs)):
-            if i == middle_idx:
-                return node
-        
-        raise RuntimeError("Could not find median")
-    
-    def searchsorted(self) -> Generator[str, bool, int]:
-        """Coroutine for asynchronously performing a binary search on the strict preference relation."""
-        ordering = list(nx.topological_sort(self.strict_prefs))
-        lo, hi = 0, len(ordering)
-
-        while lo < hi:
-            pivot = (lo + hi) // 2
-            greater = yield ordering[pivot]
-            if greater:
-                lo = pivot + 1
-            else:
-                hi = pivot
-        
-        return lo
+    def is_quasi_transitive(self) -> bool:
+        # The only way that this could end up being false is if someone modifies private
+        # attributes of the graph directly in order to create a cycle
+        return True
     
     def transitive_closure(self) -> 'PrefDAG':
         """Return a new `PrefDAG` whose strict preference relation is the transitive closure of this one,

@@ -1,16 +1,11 @@
 <script lang="ts">
-    import { globalSocket } from './rpc_socket';
+    import { GraphController, Pref, QueryPair } from './graph/graph_controller';
     import { Jumper } from 'svelte-loading-spinners';
     import { onMount } from 'svelte';
 
-    let left: string;
-    let right: string;
-    onMount(async () => {
-        ({ left, right } = await globalSocket.call('clips'));
-        console.log("Hiya");
-    });
+    let query: QueryPair;
+    onMount(async () => query = await GraphController.currentPair());
 
-    type Pref = '>' | '<' | '=';
     const key2pref: Record<string, Pref> = {
         // WASD layout
         'a': '>',
@@ -63,10 +58,7 @@
 
         // Actually commit the preference to the server
         if (!prefStack.length) {
-            console.log(`Committing ${pref}`);
-
-            globalSocket.call('addPref', { left, right, pref })
-                .then((msg) => ({ left, right } = msg));
+            GraphController.commitFeedback(pref, query).then(msg => query = msg);
         }
     }
 </script>
@@ -74,19 +66,19 @@
 <svelte:window on:keydown={handleKeyDown} on:keyup={handleKeyUp} />
 
 <div id="container">
-    {#if !left || !right}
+    {#if !query}
         <Jumper />
     {:else}
         <div>
             <div class="clips">
                 <div class:magnified={highlight === '>'} class:minified={highlight && highlight !== '>'} id="gt">
                     <h2>Left</h2>
-                    <iframe title="Left" src={`/viewer_html/${left}`}/>
+                    <iframe title="Left" src={`/viewer_html/${query.left}`}/>
                 </div>
                 <div id="symbol">{highlight ?? ' '}</div>
                 <div class:magnified={highlight === '<'} class:minified={highlight && highlight !== '<'} id="lt">
                     <h2>Right</h2>
-                    <iframe title="Right" src={`/viewer_html/${right}`}/>
+                    <iframe title="Right" src={`/viewer_html/${query.right}`}/>
                 </div>
             </div>
             <div class="buttons">

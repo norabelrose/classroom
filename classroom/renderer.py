@@ -14,8 +14,7 @@ class Renderer(ABC, Generic[ClipType]):
     def thumbnail(self, clip: ClipType, frame: int) -> np.ndarray:
         """Returns a thumbnail of the clip at the given frame as a NumPy array. If `frame` is None,
         the thumbnail will be selected from the frame at index `len(clip) // 2`."""
-        pass
     
     @abstractmethod
     def viewer_html(self, clip: ClipType) -> str:
-        pass
+        ...
