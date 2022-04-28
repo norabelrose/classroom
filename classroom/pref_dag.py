@@ -1,5 +1,5 @@
+from cv2 import add
 from .pref_graph import CoherenceViolation, PrefGraph
-from typing import Generator
 import networkx as nx
 
 
@@ -27,6 +27,8 @@ class PrefDAG(PrefGraph):
                 ex = TransitivityViolation(f"Adding {a} > {b} would create a cycle: {cycle}")
                 ex.cycle = cycle
                 raise ex
+    
+    add_pref = add_edge
     
     def add_edges_from(self, ebunch_to_add, **attr):
         # We have to override this method separately since the default implementation doesn't in turn

@@ -17,7 +17,7 @@ def ranked_pairs(ballots: Iterable[PrefDAG]) -> PrefDAG:
     tally = Counter((
         (winner, loser)
         for ballot in ballots
-        for winner, loser in nx.transitive_closure_dag(ballot.strict_prefs).edges  # type: ignore[attr-defined]
+        for winner, loser in ballot.transitive_closure().strict_prefs.edges
     ))
 
     # Iterate over pairs in descending order of vote count, adding each one to
@@ -28,5 +28,7 @@ def ranked_pairs(ballots: Iterable[PrefDAG]) -> PrefDAG:
             results.add_pref(winner, runner_up, weight=count)
         except TransitivityViolation:
             continue
+        else:
+            assert nx.is_directed_acyclic_graph(results), f"{(results, winner, runner_up, count)=}"
     
     return results
