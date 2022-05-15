@@ -5,7 +5,6 @@ into a single collective preference ordering.
 from .pref_dag import PrefDAG, TransitivityViolation
 from collections import Counter
 from typing import Iterable
-import networkx as nx
 
 
 def ranked_pairs(ballots: Iterable[PrefDAG]) -> PrefDAG:
@@ -28,7 +27,5 @@ def ranked_pairs(ballots: Iterable[PrefDAG]) -> PrefDAG:
             results.add_pref(winner, runner_up, weight=count)
         except TransitivityViolation:
             continue
-        else:
-            assert nx.is_directed_acyclic_graph(results), f"{(results, winner, runner_up, count)=}"
     
     return results

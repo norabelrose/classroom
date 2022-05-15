@@ -1,11 +1,12 @@
 import cxtmenu from 'cytoscape-cxtmenu';
 import cytoscape from "cytoscape";
 import dagre from 'cytoscape-dagre';
-import edgehandles from 'cytoscape-edgehandles';
+//import edgehandles from 'cytoscape-edgehandles';
 import type { Core, NodeSingular, SingularData } from 'cytoscape';
 import { graphStyles } from './graph_styles';
 import { RpcSocket } from "../rpc_socket";
-import { get, writable, Writable } from 'svelte/store';
+import { showIndifferences } from '../stores';
+import { get, readable, writable, Writable } from 'svelte/store';
 
 
 export type GraphEdit = {
@@ -30,7 +31,10 @@ export namespace GraphController {
     let graph: cytoscape.Core;
     let unmountCleanup = () => {};
 
-    const socket = new RpcSocket(`ws://${location.host}/feedback`);
+    export const socket = new RpcSocket(`ws://${location.host}/feedback`);
+    export const hasEnvRewards = readable(false, set => {
+        socket.call('hasEnvRewards').then(serverValue => set(serverValue));
+    });
 
     /** Load the graph from the server. */
     export async function init() {
@@ -41,7 +45,7 @@ export namespace GraphController {
         // Activate Cytoscape extensions
         cytoscape.use(cxtmenu);
         cytoscape.use(dagre);
-        cytoscape.use(edgehandles);
+        //cytoscape.use(edgehandles);
 
         // Create the graph
         graph = cytoscape({
@@ -54,6 +58,9 @@ export namespace GraphController {
             minZoom: 0.2,
             maxZoom: 1,
             style: graphStyles,
+        });
+        showIndifferences.subscribe(show => {
+            graph.$('edge.pref[!strict]').style('visibility', show ? 'visible' : 'hidden');
         });
 
         // Configure extensions

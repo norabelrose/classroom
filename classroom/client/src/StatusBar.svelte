@@ -1,11 +1,13 @@
 <script lang="ts">
     export let items: string[] = [];
+    export let status: string = '';
 </script>
 
 <footer class="bar">
     {#each items as item}
         <div class="bar-item">{item}</div>
     {/each}
+    <div class="bar-item">Status: {status}</div>
 </footer>
 
 <style>

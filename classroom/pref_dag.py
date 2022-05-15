@@ -1,4 +1,3 @@
-from cv2 import add
 from .pref_graph import CoherenceViolation, PrefGraph
 import networkx as nx
 
@@ -54,16 +53,17 @@ class PrefDAG(PrefGraph):
     def transitive_closure(self) -> 'PrefDAG':
         """Return a new `PrefDAG` whose strict preference relation is the transitive closure of this one,
         while keeping the indifferences intact."""
-        closure = PrefDAG(self)
+        closure = nx.DiGraph(self.strict_prefs)
         order = list(nx.topological_sort(self.strict_prefs))
 
         # Algorithm copied from `nx.transitive_closure_dag`- we don't use this function directly
         # in order to avoid an unnecessary copy
-        strict_view = closure.strict_prefs
         for v in reversed(order):
-            closure.add_edges_from((v, u) for u in nx.descendants_at_distance(strict_view, v, 2))
+            closure.add_edges_from((v, u) for u in nx.descendants_at_distance(closure, v, 2))
         
-        return closure
+        out = PrefDAG(closure)
+        out.add_edges_from(self.indifferences.edges(data=True))
+        return out
 
 class TransitivityViolation(CoherenceViolation):
     """Raised when a mutation of a `PrefDAG` would cause transitivity to be violated"""

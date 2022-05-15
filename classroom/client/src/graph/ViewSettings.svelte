@@ -1,8 +1,9 @@
 <script lang="ts">
-    import { persistent } from '../stores';
+    import { GraphController } from './graph_controller';
+    import { rewardType, showEnvRewards, showIndifferences, showRedundant } from '../stores';
 
-    export let showIndifferences = persistent('showIndifferences', true);
-    export let showRedundant = persistent('showRedundant', true);
+    // Mildly annoying that we have to do this to get the $ syntax to work
+    const hasEnvRewards = GraphController.hasEnvRewards;
 </script>
 
 <div class="container">
@@ -18,12 +19,25 @@
         </label>
         <input type="checkbox" id="redundant" bind:checked={$showRedundant}/>
     </div>
+    <div>
+        <label for="envRewards" class="setting"
+        title="Whether to display the 'true' rewards provided by the environment next to each node.">
+            Show environment rewards
+        </label>
+        <input type="checkbox" id="envRewards" bind:checked={$showEnvRewards} disabled={!$hasEnvRewards}/>
+    </div>
+    <div>
+        <label for="reward-type" title="Method to use for inferring rewards from preferences">Inferred rewards</label>
+        <select name="reward-type" id="reward-type" bind:value={$rewardType}>
+            <option title="The probability that a clip is preferred to another randomly selected clip" value="borda">Borda score</option>
+            <option value="bradley-terry">Bradley-Terry</option>
+            <option value="thurstone">Thurstone</option>
+            <option value="none">None</option>
+        </select>
+    </div>
 </div>
 
 <style>
-    div {
-        width: 12rem;
-    }
     .header {
         font-size: 1rem;
         padding-top: 0;

@@ -1,12 +1,52 @@
 from .pref_graph import PrefGraph
+from collections import deque
 from scipy.optimize import Bounds, minimize
-# from scipy.sparse.linalg import eigsh, inv
 from scipy.special import log1p
 from scipy.stats import logistic, norm, rv_continuous
 from typing import Literal
 import networkx as nx
 import numpy as np
 import warnings
+
+
+def borda_scores(graph: nx.DiGraph, attr_key: str | None = None) -> np.ndarray:
+    """
+    Compute the Borda scores for each node in a DAG in O(n) time. The Borda
+    score for a node N is defined as the probability that N will be preferred to
+    a randomly chosen node N'. Since a node will be preferred to itself with
+    probability 0.5, for the Borda score can never equal 0 or 1.
+
+    Parameters
+    ----------
+    graph: nx.DiGraph
+        The DAG to compute the Borda scores for.
+    attr_key: str | None
+        The key to use for storing the Borda scores in the node attributes. If None,
+        the scores will not be stored in the node attributes.
+    """
+    generations = list(nx.topological_generations(graph))
+    if not generations:
+        return np.array([0.0])
+    
+    # We assume that every node within a topological generation is "tied" with every
+    # other node in that generation, so the probability that one will be preferred
+    # to another is 0.5.
+    gen_sizes = deque(map(len, generations))
+    tie_pseudocounts = 0.5 * np.array(gen_sizes)
+    gen_sizes.popleft() # Remove the first generation
+    gen_sizes.append(0) # Add an empty last generation
+    gen_sizes.reverse() # Reverse the order for the reverse cumulative sum
+
+    dominated_counts = np.cumsum(gen_sizes)[::-1]
+    scores = (dominated_counts + tie_pseudocounts) / len(graph)
+
+    # Save the Borda scores for each node in the graph if we're provided an attr_key
+    if attr_key is not None:
+        for gen, score in zip(generations, scores):
+            for node in gen:
+                graph.nodes[node][attr_key] = score
+    
+    return scores
 
 
 def update_rewards(

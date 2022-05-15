@@ -1,11 +1,10 @@
-from brax import QP
 from brax.envs.env import Env, State, Wrapper
 from jax.experimental.host_callback import id_tap
 from jax.tree_util import tree_map
 from pathlib import Path
 from .brax_renderer import BraxRenderer
-from .utils import BraxClip, tree_stack
-import jax
+from ..jax import tree_stack
+from .utils import BraxClip
 import jax.numpy as jnp
 import numpy as np
 import pickle
@@ -21,7 +20,6 @@ class BraxRecorder(Wrapper):
             min_clip_length: int | None = None,  # Defaults to clip_length // 2
 
             clips_per_batch: int | None = None,  # Defaults to next_power_of_2(env.batch_size // 100)
-            flush_every: int = 100,
         ):
         super().__init__(env)
 
@@ -31,7 +29,6 @@ class BraxRecorder(Wrapper):
         self._clip_length = clip_length
         self._clips_per_batch = clips_per_batch or max(1, next_power_of_2(batch_size // 100))
         self._db_path = Path(db_path)
-        self._flush_every = flush_every
         self._min_clip_length = min_clip_length or clip_length // 2
 
         self._clip_dir = self._db_path / 'clips'
@@ -49,38 +46,34 @@ class BraxRecorder(Wrapper):
         return super().reset(rng)
     
     def step(self, state: State, action: jnp.ndarray) -> State:
-        # It seems to be important for performance to commit to CPU front to ensure
-        # that we don't cause any needless transfers from the host back to the device
-        cpu = jax.devices('cpu')[0]
+        # The info dictionary is the only field in the State dataclass that has scalar leaves;
+        # all other leaves are arrays with the same leading batch dimension. To make the code
+        # simple we just drop it from the state.
+        clip_state = state.replace(info={})  # type: ignore[attr-defined]
 
         # For simplicity we record the states and actions from the env in the first
         # `clips_per_batch` environments in the batch
-        stop = self._clips_per_batch
         id_tap(
-            lambda x, _: self._process_timestep(
-                *tree_map(lambda field: jax.device_put(field, cpu), x)
-            ),
-            (tree_map(lambda field: field[:stop], state.qp), action[:stop], state.done[:stop]),
+            self._process_timestep,
+            tree_map(lambda field: field[:self._clips_per_batch], BraxClip(clip_state, action)),
         )
         return super().step(state, action)
     
     def _host_reset(self):
         # We'll store the timesteps in a list, and then write them to the queue when we've
         # collected enough to make a full clip.
-        self._action_buffers = [[] for _ in range(self._clips_per_batch)]
-        self._qp_buffers = [[] for _ in range(self._clips_per_batch)]
+        self._transition_buffers = [[] for _ in range(self._clips_per_batch)]
     
-    def _process_timestep(self, qps: QP, actions: np.ndarray, dones: np.ndarray):
+    def _process_timestep(self, transition: BraxClip, _):
         """Host-side function called by `step()` to process a single timestep to be recorded."""
-        states = [tree_map(lambda field: field[i], qps) for i in range(self._clips_per_batch)]
-        
-        for s, a, s_buf, a_buf, terminal in zip(states, actions, self._qp_buffers, self._action_buffers, dones):
-            s_buf.append(s)
-            a_buf.append(a)
+        for i in range(self._clips_per_batch):
+            buffer = self._transition_buffers[i]
+            sample: BraxClip = tree_map(lambda field: field[i], transition)
+            buffer.append(sample)
 
-            if terminal or len(s_buf) >= self._clip_length:
+            if sample.state.done or len(buffer) >= self._clip_length:
                 # We've collected enough timesteps to make a clip.
-                if len(s_buf) >= self._min_clip_length:
+                if len(buffer) >= self._min_clip_length:
                     # We use Unix timestamps, measured in nanoseconds, to generate ~unique filenames that
                     # can be easily sorted by time. I decided to not use `monotonic_ns()` because it uses
                     # an undefined reference time. I'm assuming leap seconds are not a serious problem here.
@@ -88,14 +81,10 @@ class BraxRecorder(Wrapper):
                     with open(self._clip_dir / clip_name, 'wb') as f:
                         # Transpose our list of QPs into a QP where each field has a timestep dimension.
                         # This saves space in the queue and on disk.
-                        clip = BraxClip(
-                            tree_map(np.asarray, tree_stack(s_buf)),
-                            np.stack(a_buf)
-                        )
+                        clip = tree_map(np.asarray, tree_stack(buffer))
                         pickle.dump(clip, f)
                 
-                s_buf.clear()
-                a_buf.clear()
+                buffer.clear()
 
 
 def get_env_batch_size(env: Env) -> int:

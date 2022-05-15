@@ -1,4 +1,6 @@
 import type { NodeSingular, Stylesheet } from "cytoscape";
+import { showIndifferences } from "../stores";
+import { get } from "svelte/store";
 
 
 const themeQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -62,7 +64,8 @@ export const graphStyles: Stylesheet[] = [
     {
         selector: 'edge.pref[!strict]',
         style: {
-            'line-style': 'dashed'
+            'line-style': 'dashed',
+            'visibility': get(showIndifferences) ? 'visible' : 'hidden',
         }
     },
     {

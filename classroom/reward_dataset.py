@@ -1,4 +1,3 @@
-from .mle import thurstone_mle
 from .pref_graph import PrefGraph
 from pathlib import Path
 from typing import Any
@@ -18,7 +17,6 @@ class RewardDataset:
             graph = pickle.load(f)
             assert isinstance(graph, PrefGraph)
 
-        thurstone_mle(graph)
         node_iter: Any = graph.nodes(data='reward') # type: ignore
         self._nodes: list[tuple[str, float]] = sorted(node_iter, key=lambda e: e[0])
 

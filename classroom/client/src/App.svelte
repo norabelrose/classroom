@@ -12,14 +12,13 @@
     import 'tippy.js/dist/tippy.css';
     import 'tippy.js/themes/translucent.css';
 
+    const connectionStatus = GraphController.socket.readyState;
 	let popover: HTMLDivElement;
-    let settingsButton: HTMLSpanElement;
+    let settingsButton: SVGElement;
 	let showingHelp = false;
 
 	onMount(async () => {
         tippy(settingsButton, {
-            // interactive: true,
-            // allowHTML: true,
             animation: 'scale',
             arrow: true,
             content: popover,
@@ -91,9 +90,9 @@
 			</span>
 		</div>
 		<span class="spacer"></span>
-		<!-- Settings Icon -->
-		<span bind:this={settingsButton} class="control nav-item">
-			<svg><use href="/buttons.svg#settings"/></svg>
+		<!-- View settings; only show when the Visualize tab is selected -->
+		<span class="control nav-item" style:visibility={$selectedTab === 'visualize' ? 'visible' : 'hidden'}>
+			<svg bind:this={settingsButton}><use href="/buttons.svg#settings"/></svg>
 		</span>
 		<!-- Fullscreen Button -->
 		<span class="control nav-item" title="Fullscreen" on:click={toggleFullscreen}>
@@ -110,7 +109,7 @@
 	{:else}
 		<GraphView />
 	{/if}
-    <StatusBar items={$statusBarItems}/>
+    <StatusBar items={$statusBarItems} status={$connectionStatus}/>
 </div>
 
 <div bind:this={popover} id="popover">

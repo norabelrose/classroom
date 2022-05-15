@@ -27,8 +27,14 @@ export function persistent<T>(key: string, defaultValue: T): Writable<T> {
 }
 
 
+type RewardType = 'borda' | 'bradley-terry' | 'thurstone' | 'none';
 type Tab = 'compare' | 'visualize';
-export const selectedTab: Writable<Tab> = persistent('selectedTab', 'compare');
+
+export const rewardType = persistent<RewardType>('rewardType', 'bradley-terry');
+export const selectedTab = persistent<Tab>('selectedTab', 'compare');
+export const showEnvRewards = persistent('showEnvRewards', false);
+export const showIndifferences = persistent('showIndifferences', true);
+export const showRedundant = persistent('showRedundant', true);
 
 
 // This will be null when there is only one run we are allowed to see

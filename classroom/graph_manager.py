@@ -1,7 +1,6 @@
-from collections import deque
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Literal
+from typing import Literal
 
 from .pref_dag import PrefDAG
 from .pref_graph import PrefGraph
@@ -13,9 +12,8 @@ import time
 
 class GraphManager:
     """
-    Wrapper for a `PrefGraph` or `PrefDAG` object that provides undo/redo
-    support for edits to the graph. Once a graph is wrapped you must route
-    all edits to the graph through the relevant methods of this class.
+    Wrapper for a `PrefGraph` or `PrefDAG` object. Once a graph is wrapped
+    you must route all edits to the graph through the relevant methods of this class.
     """
     @classmethod
     @contextmanager
@@ -63,29 +61,7 @@ class GraphManager:
         ):
         # Copy to make sure we don't modify the original graph
         self._graph = type(graph)(graph) if copy else graph
-        self._strategy = QueryStrategy.from_name(query_strategy, self._graph)
-    
-    def populate_nodes_from(self, clip_dir: Path, ext: str = '.pkl'):
-        """
-        Add isolated nodes to the graph which correspond to the clips in the given directory.
-        We use `Path.glob` to find the clips, but we also cache the last modified time of the
-        directory and short-circuit if the directory hasn't changed since the last time we
-        ran this method. 
-        """
-        last_populated = self._graph.graph.get('last_populated', 0)
-        if last_populated > clip_dir.stat().st_mtime:
-            return
-        
-        self._graph.add_nodes_from(path.stem for path in clip_dir.glob(f'*{ext}'))
-
-        # The clips' filenames are Unix timestamps, but the human-readable ID
-        # for each clip is its 1-based index in a sorted list of all the timestamps;
-        # i.e. "Clip #42" is the 42nd clip to have been saved during learning.
-        for i, node in enumerate(sorted(self._graph.nodes), start=1):
-            self._graph.nodes[node]['id'] = i
-        
-        # Update the last populated time so we don't run this method again unnecessarily
-        self._graph.graph['last_populated'] = time.time()
+        self._strategy = QueryStrxategy.from_name(query_strategy, self._graph)
     
     def commit_feedback(self, feedback: Literal['>', '<', '=']):
         """

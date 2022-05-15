@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+from venv import create
 import networkx as nx
 from .fas import eades_fas
 if TYPE_CHECKING:   # Prevent circular import
@@ -33,9 +34,12 @@ class PrefGraph(nx.DiGraph):
     def strict_prefs(self) -> nx.DiGraph:
         """Return a read-only view of the subgraph containing only strict preferences."""
         edge_view = self.edges
-        return nx.graphviews.subgraph_view(
-            self,
-            filter_edge=lambda a, b: edge_view[a, b].get('weight', 1.0) > 0
+        return nx.graphviews.generic_graph_view(
+            nx.graphviews.subgraph_view(
+                self,
+                filter_edge=lambda a, b: edge_view[a, b].get('weight', 1.0) > 0
+            ),
+            create_using=nx.DiGraph
         )
     
     def __repr__(self) -> str:

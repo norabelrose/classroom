@@ -79,6 +79,10 @@ async def feedback_socket(request, ws):
                     left, right = manager.current_query
                     await reply({ 'left': left, 'right': right })
                 
+                # Returns whether the current environment has 'true' rewards
+                case 'hasEnvRewards', None:
+                    await reply(app.ctx.renderer.has_env_rewards())
+                
                 # Return the first pair of clips to compare.
                 case 'clips', None:
                     left, right = manager.current_query
@@ -130,7 +134,7 @@ async def feedback_socket(request, ws):
                     manager.unlink(src, tgt)
                 case _:
                     warnings.warn(f"Malformed RPC message: {call}")
-                    await ws.send(json.dumps({'id': call.get('id'), 'error': "Malformed RPC message."}))
+                    await ws.send(json.dumps({'id': call.get('id'), 'error': f"Malformed RPC message: {call}"}))
 
 
 @app.route("/thumbnail/<node>/<frame:int>")
