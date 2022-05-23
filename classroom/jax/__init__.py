@@ -1,5 +1,6 @@
 from .listwise_pref_model import ListwisePrefModel
 from .pairwise_pref_model import PairwisePrefModel
+from .pref_model import PrefModel
 from jax.tree_util import tree_flatten
 import jax.numpy as jnp
 import numpy as np

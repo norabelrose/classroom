@@ -11,6 +11,7 @@ T = TypeVar("T")
 class BatchedDataset(Sequence[T]):
     inner: Sequence[T]
     batch_size: int
+    dim: int = 0
 
     def __len__(self) -> int:
         return len(self.inner) // self.batch_size
@@ -20,7 +21,9 @@ class BatchedDataset(Sequence[T]):
             raise IndexError
         
         end = min(self.batch_size * (index + 1), len(self.inner))
-        batch = pytree_stack([self.inner[i] for i in range(self.batch_size * index, end)])
+        batch = pytree_stack(
+            [self.inner[i] for i in range(self.batch_size * index, end)], dim=self.dim
+        )
         assert batch
         return batch    # type: ignore
 

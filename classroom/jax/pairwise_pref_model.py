@@ -17,7 +17,7 @@ def mean_update(running_mean, new_value, n: int):
 class PairwisePrefModel(PrefModel):
     def pref_logit(self, a: jnp.ndarray, b: jnp.ndarray) -> jnp.ndarray:
         batch = jnp.concatenate([a, b])
-        a_pred, b_pred = jnp.split(self(batch), 2)
+        a_pred, b_pred = jnp.split(self(batch).mean(axis=-1), 2)
         return a_pred - b_pred
     
     def train_step(self, state: TrainState, batch: PairwisePref) -> tuple[float, TrainState]:
@@ -32,18 +32,16 @@ class PairwisePrefModel(PrefModel):
         state = state.apply_gradients(grads=grads['params'])
         return loss, state
 
-    def test(self, data: Iterable[PairwisePref]) -> dict[str, float]:
-        metrics: dict[str, SupportsFloat] = {'accuracy': 0, 'loss': 0}
+    def test(self, data: Iterable[PairwisePref]) -> dict[str, jnp.ndarray]:
+        metrics: dict[str, SupportsFloat] = {'acc': jnp.zeros(()), 'loss': jnp.zeros(())}
         for i, (a, b, pref) in enumerate(data):
             pref_logit = self.pref_logit(a, b)
             hits = pref == (pref_logit > 0)
 
-            metrics['accuracy'] = mean_update(
-                metrics['accuracy'], hits.mean(), i
-            )
+            metrics['acc'] = mean_update(metrics['acc'], hits.mean(), i)
             metrics['loss'] = mean_update(
                 metrics['loss'],
                 optax.sigmoid_binary_cross_entropy(pref_logit, pref.astype(jnp.float32)).mean(), i
             )
         
-        return {k: float(v) for k, v in metrics.items()}
+        return {k: jnp.asarray(v) for k, v in metrics.items()}

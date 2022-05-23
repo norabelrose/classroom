@@ -1,3 +1,3 @@
 from .brax_recorder import BraxRecorder
 from .brax_renderer import BraxRenderer
-from .utils import BraxClip
+from .utils import BraxClip, flatten_clip

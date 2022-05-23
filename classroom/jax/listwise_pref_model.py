@@ -33,7 +33,7 @@ def listwise_pref_loss(scores: jnp.ndarray) -> jnp.ndarray:
 class ListwisePrefModel(PrefModel):    
     def train_step(self, state: TrainState, batch: ListwisePref) -> tuple[float, TrainState]:
         def compute_loss(model: 'ListwisePrefModel') -> jnp.ndarray:
-            return listwise_pref_loss(model(batch))
+            return listwise_pref_loss(model(batch).mean(axis=-1))
         
         grad_fn = jax.value_and_grad(nn.apply(compute_loss, self))
         (loss, grads) = grad_fn({'params': state.params})
@@ -46,7 +46,7 @@ class ListwisePrefModel(PrefModel):
         rank_corr = RankCorrelation('kendalltau')
 
         for clips in data:
-            scores = self(clips)
+            scores = self(clips).mean(axis=-1)
             losses.append(listwise_pref_loss(scores))
             rank_corr.update(scores, np.arange(len(scores), 0, -1))
         

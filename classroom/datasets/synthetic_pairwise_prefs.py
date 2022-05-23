@@ -2,7 +2,6 @@ from .synthetic_prefs import SyntheticPrefs
 from scipy.special import expit
 from typing import Any
 import numpy as np
-import pickle
 
 
 class SyntheticPairwisePrefs(SyntheticPrefs):
@@ -35,13 +34,9 @@ class SyntheticPairwisePrefs(SyntheticPrefs):
 
     def __getitem__(self, item: int) -> tuple[Any, Any, np.ndarray]:
         id_a, id_b = self._pairs[item]
+        clip_a = self.clip_with_id(id_a)
+        clip_b = self.clip_with_id(id_b)
 
-        with open(self.path / 'clips' / f'{id_a}.pkl', 'rb') as f:
-            clip_a = self.transform(pickle.load(f))
-        
-        with open(self.path / 'clips' / f'{id_b}.pkl', 'rb') as f:
-            clip_b = self.transform(pickle.load(f))
-        
         return clip_a, clip_b, self._noisy_prefs[item]
 
     def __len__(self):
