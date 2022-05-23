@@ -1,5 +1,5 @@
 ## Classroom
 
-Classroom is an open source Python library for teaching reinforcement learning agents about human preferences. It comes packaged with a browser-based GUI for providing human feedback to RL agents. Classroom builds upon OpenAI's popular [Gym](https://github.com/openai/gym) library for reinforcement learning environments, and aims to be compatible with all three major neural network frameworks: PyTorch, JAX, and TensorFlow. The goal of Classroom is to make preference-based reinforcement learning _easy_, requiring only a few extra lines of code on top of the usual RL pipeline.
+Classroom is an open source Python library for teaching reinforcement learning agents about human preferences. It comes packaged with a browser-based GUI for providing human feedback to RL agents. Classroom builds upon OpenAI's popular [Gym](https://github.com/openai/gym) library for reinforcement learning environments, and aims to be compatible with both PyTorch and JAX. The goal of Classroom is to make preference-based reinforcement learning _easy_, requiring only a few extra lines of code on top of the usual RL pipeline.
 
-This repo is currently a work in progress and is not yet production-ready.
+This repo is currently a work in progress and is not yet production-ready. In order to use it, you'll need to have Python 3.10 or later, as well as a Node.js installation for building the GUI, which is written in [Svelte](https://github.com/sveltejs/svelte) and [TypeScript](https://github.com/microsoft/TypeScript).

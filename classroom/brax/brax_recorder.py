@@ -5,6 +5,7 @@ from pathlib import Path
 from .brax_renderer import BraxRenderer
 from ..jax import tree_stack
 from .utils import BraxClip
+import csv
 import jax.numpy as jnp
 import numpy as np
 import pickle
@@ -17,8 +18,6 @@ class BraxRecorder(Wrapper):
             env: Env,
             db_path: Path | str,
             clip_length: int = 120,
-            min_clip_length: int | None = None,  # Defaults to clip_length // 2
-
             clips_per_batch: int | None = None,  # Defaults to next_power_of_2(env.batch_size // 100)
         ):
         super().__init__(env)
@@ -29,10 +28,11 @@ class BraxRecorder(Wrapper):
         self._clip_length = clip_length
         self._clips_per_batch = clips_per_batch or max(1, next_power_of_2(batch_size // 100))
         self._db_path = Path(db_path)
-        self._min_clip_length = min_clip_length or clip_length // 2
 
         self._clip_dir = self._db_path / 'clips'
         self._clip_dir.mkdir(parents=True, exist_ok=True)
+        self._csv_writer = csv.writer(open(self._db_path / 'rewards.csv', 'w'))
+        self._csv_writer.writerow(['clip_id', 'reward'])
 
         # Save a renderer that can be used to render the clips later
         with open(self._db_path / 'renderer.pkl', 'wb') as f:
@@ -71,20 +71,25 @@ class BraxRecorder(Wrapper):
             sample: BraxClip = tree_map(lambda field: field[i], transition)
             buffer.append(sample)
 
-            if sample.state.done or len(buffer) >= self._clip_length:
-                # We've collected enough timesteps to make a clip.
-                if len(buffer) >= self._min_clip_length:
-                    # We use Unix timestamps, measured in nanoseconds, to generate ~unique filenames that
-                    # can be easily sorted by time. I decided to not use `monotonic_ns()` because it uses
-                    # an undefined reference time. I'm assuming leap seconds are not a serious problem here.
-                    clip_name = f"{time.time_ns()}.pkl"
-                    with open(self._clip_dir / clip_name, 'wb') as f:
-                        # Transpose our list of QPs into a QP where each field has a timestep dimension.
-                        # This saves space in the queue and on disk.
-                        clip = tree_map(np.asarray, tree_stack(buffer))
-                        pickle.dump(clip, f)
+            # We hit a terminal state but we haven't collected enough transitions to make a clip yet
+            if sample.state.done and len(buffer) < self._clip_length:
+                buffer.clear()
+            
+            # We've collected enough timesteps to make a clip.
+            elif len(buffer) >= self._clip_length:
+                # We use Unix timestamps, measured in nanoseconds, to generate ~unique filenames that
+                # can be easily sorted by time. I decided to not use `monotonic_ns()` because it uses
+                # an undefined reference time. I'm assuming leap seconds are not a serious problem here.
+                timestamp = time.time_ns()
+                clip_name = f"{timestamp}.pkl"
+                with open(self._clip_dir / clip_name, 'wb') as f:
+                    # Transpose our list of QPs into a QP where each field has a timestep dimension.
+                    # This saves space in the queue and on disk.
+                    clip = tree_map(np.asarray, tree_stack(buffer))
+                    pickle.dump(clip, f)
                 
                 buffer.clear()
+                self._csv_writer.writerow([timestamp, clip.state.reward.sum()])
 
 
 def get_env_batch_size(env: Env) -> int:

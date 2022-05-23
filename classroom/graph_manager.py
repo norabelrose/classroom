@@ -61,7 +61,7 @@ class GraphManager:
         ):
         # Copy to make sure we don't modify the original graph
         self._graph = type(graph)(graph) if copy else graph
-        self._strategy = QueryStrxategy.from_name(query_strategy, self._graph)
+        self._strategy = QueryStrategy.from_name(query_strategy, self._graph)
     
     def commit_feedback(self, feedback: Literal['>', '<', '=']):
         """
